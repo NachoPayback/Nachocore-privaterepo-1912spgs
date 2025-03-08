@@ -1,0 +1,8 @@
+{ 
+    "name": "Amazon",
+    "format": ["4-6-4", "4-6-5"],
+    "type": "alphanumeric",
+    "starts_with": ["A", "B", "C"],
+    "pin_format": "4",
+    "pin_required": true
+    }

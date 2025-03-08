@@ -1,0 +1,8 @@
+{
+    "name": "Microsoft",
+    "format": "5-5-5-5-5",
+    "type": "alphanumeric",
+    "starts_with": ["X", "G"],
+    "pin_format": "6",
+    "pin_required": true
+}

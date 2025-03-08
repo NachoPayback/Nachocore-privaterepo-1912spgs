@@ -1,0 +1,51 @@
+[
+    {
+        "question": "Full blown test",
+        "options": [
+            "Not this one",
+            "This one",
+            "But also this one"
+        ],
+        "correct_indices": [
+            1,
+            2
+        ],
+        "type": "Multiple Choice"
+    },
+    {
+        "question": "Say hi",
+        "acceptable_answers": [
+            "hi",
+            "hello",
+            "sup"
+        ],
+        "has_correct": true,
+        "type": "Short Answer"
+    },
+    {
+        "question": "Say anything",
+        "acceptable_answers": [],
+        "has_correct": false,
+        "type": "Short Answer"
+    },
+    {
+        "question": "Where are you located?",
+        "answer": "",
+        "type": "Location Collection"
+    },
+    {
+        "question": "What is your real name?",
+        "answer": "",
+        "type": "Name Collection"
+    },
+    {
+        "question": "Location fucked",
+        "answer": "lmao",
+        "type": "Location Collection"
+    },
+    {
+        "question": "Gotchu fucker",
+        "answer": "L",
+        "type": "Name Collection"
+    }
+]

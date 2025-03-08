@@ -1,0 +1,8 @@
+{
+    "name": "Walmart",
+    "format": "4-4-4-4",
+    "type": "numeric",
+    "starts_with": ["1000", "5000", "3000"],
+    "pin_format": "4",
+    "pin_required": true
+}

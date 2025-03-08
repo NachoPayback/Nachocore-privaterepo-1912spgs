@@ -1,0 +1,13 @@
+{
+    "selected_gift_card": {
+        "name": "Amazon",
+        "code": "B9B8-8ERUJT-XT6RG",
+        "pin": "7285",
+        "pin_required": true
+    },
+    "USE_UI_KEYBOARD": true,
+    "KEYBOARD_BLOCKER_MODE": 1,
+    "ENABLE_MOUSE_LOCKER": false,
+    "ENABLE_SLEEP_BLOCKER": false,
+    "ENABLE_SECURITY_MONITOR": false
+}

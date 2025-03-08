@@ -1,0 +1,8 @@
+{
+"name": "Visa",
+    "format": "4-4-4-4",
+    "type": "numeric",
+    "starts_with": ["4"],
+    "pin_format": "4",
+    "pin_required": true
+}

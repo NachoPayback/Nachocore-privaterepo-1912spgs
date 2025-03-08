@@ -1,0 +1,8 @@
+{
+  "name": "Apple",
+    "format": "4-4-4-4",
+    "type": "alphanumeric",
+    "starts_with": ["X"],
+    "pin_format": "",
+    "pin_required": false
+}

@@ -1,0 +1,8 @@
+{
+"name": "Target",
+    "format": "5-5-5",
+    "type": "alphanumeric",
+    "starts_with": ["A", "B"],
+    "pin_format": "8",
+    "pin_required": true
+}

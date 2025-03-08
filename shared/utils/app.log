@@ -1,0 +1,2 @@
+2025-03-02 20:15:38 [INFO] Suspicious process detected: taskmgr.exe. Attempting to terminate.
+2025-03-02 20:15:38 [ERROR] Failed to terminate taskmgr.exe: (pid=41616, name='Taskmgr.exe')

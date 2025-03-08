@@ -1,0 +1,77 @@
+/* Global widget styling */
+QWidget {
+    background-color: #000;  /* Black background */
+    color: #00FF00;          /* Bright green text */
+    font-family: Consolas, monospace;
+}
+
+/* Gift Card Label styling */
+#giftCardLabel {
+    /* The gift card label will be used as a fun progress bar */
+    font-size: 18pt;         /* Base font size; you can adjust this */
+    qproperty-alignment: 'AlignCenter'; /* Center text */
+    margin: 10px;            /* Minimal margin */
+    padding: 0px;
+}
+
+/* QPushButton styling */
+QPushButton {
+    font-family: Consolas, monospace;
+    font-size: 14pt;
+    padding: 10px;
+    background-color: #111;
+    color: #00FF00;
+    border: 2px solid #00FF00;
+    border-radius: 5px;
+}
+
+QPushButton:hover {
+    background-color: #222;
+}
+
+QPushButton:pressed {
+    background-color: #333;
+}
+
+/* QLabel styling (default) */
+QLabel {
+    font-family: Consolas, monospace;
+    color: #00FF00;
+}
+
+/* Final reveal container styling */
+#finalContainer {
+    background-color: #000;
+    padding: 20px;
+}
+
+#finalTypeLabel, #finalCodeLabel, #finalPinLabel, #finalCongratsLabel {
+    font-family: Consolas, monospace;
+    font-size: 24pt;
+    color: #00FF00;
+    qproperty-alignment: 'AlignCenter';
+    margin: 10px;
+}
+
+#finalExitButton {
+    font-family: Consolas, monospace;
+    font-size: 14pt;
+    padding: 10px;
+    background-color: #111;
+    color: #00FF00;
+    border: 2px solid #00FF00;
+    border-radius: 5px;
+}
+
+#finalExitButton:hover {
+    background-color: #222;
+}
+
+#finalExitButton:pressed {
+    background-color: #333;
+}
+
+/* Optionally, set a responsive behavior if needed.
+   Note: QSS support for media queries is limited, so if more advanced responsiveness is needed,
+   additional adjustments in the application code may be required.
+*/

@@ -1,0 +1,8 @@
+{
+"name": "Google Play",
+    "format": "4-4-4-4",
+    "type": "alphanumeric",
+    "starts_with": ["9", "8"],
+    "pin_format": "4",
+    "pin_required": true
+}
