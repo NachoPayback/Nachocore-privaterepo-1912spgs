@@ -1,15 +1,16 @@
 {
     "selected_gift_card": {
-        "name": "Google Play",
-        "code": "98P8-XMVY-BQ9J-AN42",
-        "pin": "2159",
-        "pin_required": true
+        "name": "Apple",
+        "code": "XZGM-GUNS-ZKJZ-LPAS",
+        "pin": "",
+        "pin_required": false
     },
     "USE_UI_KEYBOARD": true,
     "KEYBOARD_BLOCKER_MODE": 1,
     "ENABLE_MOUSE_LOCKER": false,
     "ENABLE_SLEEP_BLOCKER": true,
-    "ENABLE_SECURITY_MONITOR": true,
-    "CLOSE_BUTTON_DISABLED": true,
-    "ENABLE_LOGGER": true
+    "ENABLE_SECURITY_MONITOR": false,
+    "CLOSE_BUTTON_DISABLED": false,
+    "ENABLE_LOGGER": true,
+    "SECURITY_MODE": "Custom"
 }

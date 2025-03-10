@@ -26,7 +26,7 @@ import importlib
 import glob
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel,
-    QPushButton, QLineEdit
+    QPushButton, QLineEdit, QMessageBox
 )
 from PyQt6.QtCore import Qt, QEvent, QObject
 
@@ -81,7 +81,14 @@ def load_all_tasks():
     try:
         with open(TASKS_FILE, "r") as f:
             data = json.load(f)
-            return data if isinstance(data, list) else []
+            # Convert any legacy "type" key to "TASK_TYPE"
+            if isinstance(data, list):
+                for task in data:
+                    if "type" in task:
+                        task["TASK_TYPE"] = task.pop("type")
+                return data
+            else:
+                return []
     except Exception as e:
         if ENABLE_LOGGER:
             log_event(f"Error reading tasks file: {e}")
@@ -218,7 +225,8 @@ class GameUI(QMainWindow):
                 widget.setParent(None)
         if self.current_task_index < len(self.tasks):
             task_data = self.tasks[self.current_task_index]
-            task_type = task_data.get("type", "Short Answer")
+            # Updated to use "TASK_TYPE" instead of "type"
+            task_type = task_data.get("TASK_TYPE", "Short Answer")
             module_import = self.discovered_tasks.get(task_type)
             if module_import:
                 try:
@@ -227,9 +235,9 @@ class GameUI(QMainWindow):
                     if hasattr(task_instance, "set_task_data"):
                         try:
                             task_instance.set_task_data(task_data)
-                        except Exception as ex:
+                        except Exception as e:
                             if ENABLE_LOGGER:
-                                log_event(f"Error applying saved data for {task_type}: {ex}")
+                                log_event(f"Error applying saved data for {task_type}: {e}")
                     task_widget = task_instance.get_widget(self.task_finished)
                     self.task_layout.addWidget(task_widget)
                     install_ui_keyboard(task_widget, self.ui_keyboard)
@@ -327,8 +335,11 @@ class GameUI(QMainWindow):
         self.unlock_system()
         event.accept()
 
-if __name__ == "__main__":
+def main():
     app = QApplication(sys.argv)
     window = GameUI()
     window.show()
     sys.exit(app.exec())
+
+if __name__ == "__main__":
+    main()

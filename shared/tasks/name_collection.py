@@ -1,5 +1,4 @@
-TASK_TYPE = "Name Collection"
-
+TASK_TYPE = "name_collection"
 import getpass
 import random
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QFormLayout

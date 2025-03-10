@@ -1,4 +1,4 @@
-TASK_TYPE = "Multiple Choice"
+TASK_TYPE = "multiple_choice"
 
 import random
 from PyQt6.QtWidgets import (

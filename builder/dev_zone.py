@@ -9,6 +9,8 @@ one of four modes: Ethical, Unethical, Grift, or Custom.
   below the slider.
 - When Custom mode is selected, individual controls appear so the builder can choose
   specific security measures.
+The widget now loads the last set state from the configuration so that the slider and,
+if in Custom mode, the checkboxes reflect the saved state.
 """
 
 import os
@@ -59,7 +61,7 @@ class DevZoneWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.init_ui()
-        self.load_existing_settings()
+        self.load_existing_state()
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -89,17 +91,12 @@ class DevZoneWidget(QWidget):
         self.customContainer = QWidget()
         customLayout = QFormLayout(self.customContainer)
         self.custom_uiKeyboard = QCheckBox("Use UI Keyboard")
-        self.custom_uiKeyboard.setChecked(False)
         self.custom_keyboard_blocker = QComboBox()
-        # Only two valid options: Mode 1 and Mode 2.
         self.custom_keyboard_blocker.addItem("Block All (Mode 1)", 1)
         self.custom_keyboard_blocker.addItem("Allow Typeable (Mode 2)", 2)
         self.custom_mouse_locker = QCheckBox("Enable Mouse Locker")
-        self.custom_mouse_locker.setChecked(False)
         self.custom_sleep_blocker = QCheckBox("Enable Sleep Blocker")
-        self.custom_sleep_blocker.setChecked(False)
         self.custom_security_monitor = QCheckBox("Enable Security Monitor")
-        self.custom_security_monitor.setChecked(False)
         customLayout.addRow(self.custom_uiKeyboard)
         customLayout.addRow("Keyboard Blocker Mode:", self.custom_keyboard_blocker)
         customLayout.addRow(self.custom_mouse_locker)
@@ -125,9 +122,27 @@ class DevZoneWidget(QWidget):
             self.summaryLabel.setText(generate_security_summary(mode))
         self.modeChanged.emit(mode)
     
-    def load_existing_settings(self):
-        # Default to Ethical mode.
-        self.modeSlider.setValue(0)
+    def load_existing_state(self):
+        # Load the current security settings from the configuration.
+        config = security_settings.load_security_settings()
+        # Determine the mode from config (assuming a key "SECURITY_MODE" exists).
+        # If not set, default to Ethical.
+        mode = config.get("SECURITY_MODE", "Ethical")
+        # Update slider based on mode.
+        index = list(SECURITY_MODES.values()).index(mode) if mode in SECURITY_MODES.values() else 0
+        self.modeSlider.setValue(index)
+        # If in Custom mode, load individual control states.
+        if mode == "Custom":
+            self.custom_uiKeyboard.setChecked(config.get("USE_UI_KEYBOARD", False))
+            kb_mode = config.get("KEYBOARD_BLOCKER_MODE", 1)
+            # Set combo box to the appropriate index.
+            idx = 0 if kb_mode == 1 else 1
+            self.custom_keyboard_blocker.setCurrentIndex(idx)
+            self.custom_mouse_locker.setChecked(config.get("ENABLE_MOUSE_LOCKER", False))
+            self.custom_sleep_blocker.setChecked(config.get("ENABLE_SLEEP_BLOCKER", False))
+            self.custom_security_monitor.setChecked(config.get("ENABLE_SECURITY_MONITOR", False))
+        else:
+            self.summaryLabel.setText(generate_security_summary(mode))
     
     def save_mode(self):
         mode = SECURITY_MODES.get(self.modeSlider.value(), "Ethical")
@@ -137,11 +152,16 @@ class DevZoneWidget(QWidget):
                 "KEYBOARD_BLOCKER_MODE": self.custom_keyboard_blocker.currentData(),
                 "ENABLE_MOUSE_LOCKER": self.custom_mouse_locker.isChecked(),
                 "ENABLE_SLEEP_BLOCKER": self.custom_sleep_blocker.isChecked(),
-                "ENABLE_SECURITY_MONITOR": self.custom_security_monitor.isChecked()
+                "ENABLE_SECURITY_MONITOR": self.custom_security_monitor.isChecked(),
+                "SECURITY_MODE": mode
             }
             success, message, _ = security_settings.set_mode(mode, custom_settings=custom_settings)
         else:
             success, message, _ = security_settings.set_mode(mode)
+            # Also update config to save the mode.
+            config = security_settings.load_security_settings()
+            config["SECURITY_MODE"] = mode
+            security_settings.save_security_settings(config)
         if success:
             QMessageBox.information(self, "Success", f"Security mode set to {mode}.")
             self.modeChanged.emit(mode)

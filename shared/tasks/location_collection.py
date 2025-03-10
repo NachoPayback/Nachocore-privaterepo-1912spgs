@@ -1,4 +1,4 @@
-TASK_TYPE = "Location Collection"
+TASK_TYPE = "location_collection"
 
 import requests
 import random

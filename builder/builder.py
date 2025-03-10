@@ -232,6 +232,9 @@ class BuilderUI(QMainWindow):
             self.export_security_slider.setValue(idx)
             self.export_security_slider.blockSignals(False)
             self.update_export_mode_label()
+            # Force reload export state so that custom container visibility and checkboxes are updated.
+            self.load_export_state()
+
     
     def load_config(self):
         if os.path.exists(CONFIG_PATH):
@@ -468,6 +471,8 @@ class BuilderUI(QMainWindow):
         export_customLayout.addRow(self.export_security_monitor)
         self.export_customContainer.setVisible(False)
         layout.addWidget(self.export_customContainer)
+        # Load existing export state from configuration.
+        self.load_export_state()
         # When the export slider changes, update custom container visibility.
         self.export_security_slider.valueChanged.connect(self.on_export_slider_changed)
         # Export button.
@@ -522,6 +527,8 @@ class BuilderUI(QMainWindow):
         else:
             self.export_customContainer.setVisible(False)
             self.update_export_mode_label()
+        # Save the export state to configuration.
+        self.save_export_state()
 
     def update_export_mode_label(self):
         mode = SECURITY_MODES.get(self.export_security_slider.value(), "Ethical")
@@ -530,7 +537,38 @@ class BuilderUI(QMainWindow):
             summary = generate_security_summary(mode)
         self.export_mode_label.setText(f"Export Security Mode: {mode}" + (f" - {summary}" if summary else ""))
         self.export_mode_label.setStyleSheet(f"color: {mode_text_color(mode)}; font-weight: bold;")
-    
+
+    def load_export_state(self):
+        config = security_settings.load_security_settings()
+        mode = config.get("SECURITY_MODE", "Ethical")
+        idx = list(SECURITY_MODES.values()).index(mode) if mode in SECURITY_MODES.values() else 0
+        self.export_security_slider.setValue(idx)
+        if mode == "Custom":
+            self.export_customContainer.setVisible(True)
+            self.export_uiKeyboard.setChecked(config.get("USE_UI_KEYBOARD", False))
+            kb_mode = config.get("KEYBOARD_BLOCKER_MODE", 1)
+            idx = 0 if kb_mode == 1 else 1
+            self.export_keyboard_blocker.setCurrentIndex(idx)
+            self.export_mouse_locker.setChecked(config.get("ENABLE_MOUSE_LOCKER", False))
+            self.export_sleep_blocker.setChecked(config.get("ENABLE_SLEEP_BLOCKER", False))
+            self.export_security_monitor.setChecked(config.get("ENABLE_SECURITY_MONITOR", False))
+        else:
+            self.export_customContainer.setVisible(False)
+        self.update_export_mode_label()
+
+    def save_export_state(self):
+        # Save the current export slider state and custom settings if applicable.
+        mode = SECURITY_MODES.get(self.export_security_slider.value(), "Ethical")
+        config = security_settings.load_security_settings()
+        config["SECURITY_MODE"] = mode
+        if mode == "Custom":
+            config["USE_UI_KEYBOARD"] = self.export_uiKeyboard.isChecked()
+            config["KEYBOARD_BLOCKER_MODE"] = self.export_keyboard_blocker.currentData()
+            config["ENABLE_MOUSE_LOCKER"] = self.export_mouse_locker.isChecked()
+            config["ENABLE_SLEEP_BLOCKER"] = self.export_sleep_blocker.isChecked()
+            config["ENABLE_SECURITY_MONITOR"] = self.export_security_monitor.isChecked()
+        security_settings.save_security_settings(config)
+
     # ----------------- Developer Zone Tab -----------------
     def create_dev_zone_tab(self):
         from builder.dev_zone import DevZoneWidget

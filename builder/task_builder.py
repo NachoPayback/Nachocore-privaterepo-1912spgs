@@ -1,102 +1,79 @@
 import os
 import json
-from PyQt6.QtWidgets import QListWidget, QListWidgetItem
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QListWidget, QListWidgetItem
+
+class TaskListWidget(QListWidget):
+    """
+    A minimal subclass of QListWidget for displaying tasks.
+    You can expand this class if additional functionality is needed.
+    """
+    pass
 
 class TaskManager:
-    def __init__(self, project_root, list_widget: QListWidget):
-        """
-        Initialize the TaskManager.
-        
-        Args:
-            project_root (str): The absolute path to the project root.
-            list_widget (QListWidget): The widget in the builder UI that displays tasks.
-        """
+    def __init__(self, project_root, list_widget: TaskListWidget):
         self.project_root = project_root
         self.list_widget = list_widget
+        # Path to tasks.json inside the builder/tasks folder.
         self.tasks_file = os.path.join(self.project_root, "builder", "tasks", "tasks.json")
-        self.tasks = self.load_tasks()
-        # Set up the list widget for drag-and-drop reordering.
-        self.list_widget.setDragDropMode(QListWidget.DragDropMode.InternalMove)
-        # Update the widget to reflect the loaded tasks.
-        self.update_list_widget()
+        self.tasks = []
+        self.load_tasks()
 
     def load_tasks(self):
-        """Loads tasks from tasks.json; returns a list of task dictionaries."""
-        if not os.path.exists(self.tasks_file):
-            return []
-        try:
-            with open(self.tasks_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return data
-                else:
-                    return []
-        except Exception as e:
-            print("Error loading tasks:", e)
-            return []
-
-    def save_tasks(self):
-        """Saves the current task list to tasks.json."""
-        try:
-            tasks_dir = os.path.dirname(self.tasks_file)
-            if not os.path.exists(tasks_dir):
-                os.makedirs(tasks_dir)
-            with open(self.tasks_file, "w", encoding="utf-8") as f:
-                json.dump(self.tasks, f, indent=4)
-        except Exception as e:
-            print("Error saving tasks:", e)
+        """Load tasks from tasks.json and convert 'type' to 'TASK_TYPE' if necessary."""
+        if os.path.exists(self.tasks_file):
+            try:
+                with open(self.tasks_file, "r") as f:
+                    self.tasks = json.load(f)
+                # Convert any legacy "type" keys to "TASK_TYPE"
+                for task in self.tasks:
+                    if "type" in task:
+                        task["TASK_TYPE"] = task.pop("type")
+            except Exception as e:
+                print("Error loading tasks:", e)
+                self.tasks = []
+        else:
+            self.tasks = []
+        self.update_list_widget()
 
     def update_list_widget(self):
-        """Clears and repopulates the QListWidget based on self.tasks."""
+        """Refresh the list widget to display current tasks."""
         self.list_widget.clear()
-        for index, task in enumerate(self.tasks):
-            # Use a short representation; you can customize this as needed.
-            display_text = f"{index+1}: {task.get('question', 'No question')}"
-            item = QListWidgetItem(display_text)
-            # Store the entire task dictionary in UserRole (1000)
+        for task in self.tasks:
+            # Use the "TASK_TYPE" key for display.
+            task_type = task.get("TASK_TYPE", "Unknown Task")
+            item = QListWidgetItem(task_type)
             item.setData(Qt.ItemDataRole.UserRole, task)
             self.list_widget.addItem(item)
 
-    def add_task(self, task_data):
-        """Adds a new task to the list."""
-        self.tasks.append(task_data)
+    def add_task(self, task):
+        """
+        Add a new task dictionary.
+        If the task dictionary contains the key "type", convert it to "TASK_TYPE".
+        """
+        if "type" in task:
+            task["TASK_TYPE"] = task.pop("type")
+        self.tasks.append(task)
         self.update_list_widget()
-        self.save_tasks()
 
     def delete_task(self, index):
-        """Deletes the task at the given index."""
+        """Delete the task at the given index."""
         if 0 <= index < len(self.tasks):
-            self.tasks.pop(index)
+            del self.tasks[index]
             self.update_list_widget()
-            self.save_tasks()
+        else:
+            print("Invalid index for deletion.")
 
     def clear_tasks(self):
-        """Clears the entire task list."""
+        """Clear all tasks from the manager and update the list widget."""
         self.tasks = []
         self.update_list_widget()
-        self.save_tasks()
 
-    def reorder_tasks(self):
-        """
-        After drag-and-drop reordering in the list widget,
-        update self.tasks to match the new order.
-        """
-        new_order = []
-        for i in range(self.list_widget.count()):
-            item = self.list_widget.item(i)
-            task_data = item.data(Qt.ItemDataRole.UserRole)
-            new_order.append(task_data)
-        self.tasks = new_order
-        self.save_tasks()
-
-# Optional: A subclass of QListWidget that automatically updates task order on drop.
-class TaskListWidget(QListWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.order_changed_callback = None
-
-    def dropEvent(self, event):
-        super().dropEvent(event)
-        if self.order_changed_callback:
-            self.order_changed_callback()
+    def save_tasks(self):
+        """Write the current tasks to tasks.json, ensuring proper key names."""
+        try:
+            with open(self.tasks_file, "w") as f:
+                json.dump(self.tasks, f, indent=4)
+            print("Tasks saved successfully.")
+        except Exception as e:
+            print("Error saving tasks:", e)

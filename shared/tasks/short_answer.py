@@ -1,4 +1,4 @@
-TASK_TYPE = "Short Answer"
+TASK_TYPE = "short_answer"
 
 import random
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QCheckBox, QPushButton, QFormLayout

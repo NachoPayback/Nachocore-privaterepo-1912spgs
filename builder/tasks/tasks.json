@@ -1,51 +1,64 @@
 [
     {
-        "question": "Full blown test",
+        "question": "What color is the brand?",
         "options": [
-            "Not this one",
-            "This one",
-            "But also this one"
+            "Blue",
+            "Green",
+            "Red",
+            "Yellow"
+        ],
+        "correct_indices": [
+            0
+        ],
+        "TASK_TYPE": "Multiple Choice"
+    },
+    {
+        "question": "What color is the brand?",
+        "options": [
+            "No",
+            "Yeah",
+            "Also yeah"
         ],
         "correct_indices": [
             1,
             2
         ],
-        "type": "Multiple Choice"
+        "TASK_TYPE": "Multiple Choice"
     },
     {
-        "question": "Say hi",
+        "question": "Say hi!",
         "acceptable_answers": [
             "hi",
             "hello",
             "sup"
         ],
         "has_correct": true,
-        "type": "Short Answer"
+        "TASK_TYPE": "Short Answer"
     },
     {
         "question": "Say anything",
         "acceptable_answers": [],
         "has_correct": false,
-        "type": "Short Answer"
-    },
-    {
-        "question": "Where are you located?",
-        "answer": "",
-        "type": "Location Collection"
+        "TASK_TYPE": "Short Answer"
     },
     {
         "question": "What is your real name?",
         "answer": "",
-        "type": "Name Collection"
+        "TASK_TYPE": "Name Collection"
     },
     {
-        "question": "Location fucked",
-        "answer": "lmao",
-        "type": "Location Collection"
+        "question": "Where are you located?",
+        "answer": "",
+        "TASK_TYPE": "Location Collection"
     },
     {
-        "question": "Gotchu fucker",
-        "answer": "L",
-        "type": "Name Collection"
+        "question": "What is your real name 2?",
+        "answer": "Gottem",
+        "TASK_TYPE": "Name Collection"
+    },
+    {
+        "question": "Where are you located 2?",
+        "answer": "yoink",
+        "TASK_TYPE": "Location Collection"
     }
 ]

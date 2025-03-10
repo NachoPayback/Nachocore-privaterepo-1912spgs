@@ -5,7 +5,9 @@ Export Module
 This module implements the export functionality for the game.
 The export_exe function exports the game to an executable using PyInstaller.
 It constructs the command with hidden imports and additional data files.
-This version simulates the export process; replace the simulated logic with your actual export commands as needed.
+This version is updated to use get_data_path() for locating resources so that
+the bundled executable finds all task modules, data files (like tasks.json, stylesheets,
+gift card data), and shared modules.
 """
 
 import os
@@ -21,6 +23,14 @@ PROJECT_ROOT = os.path.abspath(os.path.join(current_dir, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+# Import get_data_path from your data helpers so that resource paths work correctly in the bundle.
+try:
+    from shared.utils.data_helpers import get_data_path
+except ImportError as e:
+    # Fallback: use PROJECT_ROOT directly if get_data_path is not found.
+    def get_data_path(relative_path):
+        return os.path.join(PROJECT_ROOT, relative_path)
+
 # Safeguard: re-check if project root is available.
 try:
     import shared.config
@@ -35,7 +45,8 @@ except ImportError as e:
 
 def get_hidden_imports(project_root):
     hidden_imports = []
-    tasks_folder = os.path.join(project_root, "shared", "tasks")
+    # Use get_data_path() to locate the shared/tasks folder.
+    tasks_folder = get_data_path(os.path.join("shared", "tasks"))
     for filepath in glob.glob(os.path.join(tasks_folder, "*.py")):
         filename = os.path.basename(filepath)
         if filename == "__init__.py":
@@ -46,6 +57,7 @@ def get_hidden_imports(project_root):
         try:
             spec.loader.exec_module(module)
             if hasattr(module, "TASK_TYPE"):
+                # We use the module’s TASK_TYPE (assumed to be consistent with tasks.json)
                 hidden_imports.append(f"shared.tasks.{module_name}")
         except Exception as e:
             print(f"Error importing {filename}: {e}")
@@ -74,7 +86,8 @@ def get_data_files(project_root):
         ("builder/data/gift_cards", "builder/data/gift_cards")
     ]
     for src_rel, tgt_rel in folders:
-        src_abs = os.path.join(project_root, src_rel)
+        # Use get_data_path() to locate these folders.
+        src_abs = get_data_path(src_rel)
         if not os.path.exists(src_abs):
             continue
         for root, _, files in os.walk(src_abs):
@@ -114,7 +127,7 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
     hidden_imports = get_hidden_imports(project_root)
     data_files = get_data_files(project_root)
 
-    # Define output directories (if needed).
+    # Define output directories.
     export_dir = os.path.join(project_root, "exported")
     os.makedirs(export_dir, exist_ok=True)
 
