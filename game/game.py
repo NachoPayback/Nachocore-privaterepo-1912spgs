@@ -8,18 +8,12 @@ PROJECT_ROOT = os.path.abspath(os.path.join(current_dir, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-# Safeguard for importing shared modules.
+# Import get_data_path from shared utils; provide fallback if not found.
 try:
     from shared.utils.data_helpers import get_data_path
-except ImportError as e:
-    # Attempt to re-add PROJECT_ROOT and try again.
-    if PROJECT_ROOT not in sys.path:
-        sys.path.insert(0, PROJECT_ROOT)
-    try:
-        from shared.utils.data_helpers import get_data_path
-    except ImportError as e:
-        print("Failed to import shared.utils.data_helpers:", e)
-        sys.exit(1)
+except ImportError:
+    def get_data_path(relative_path):
+        return os.path.join(PROJECT_ROOT, relative_path)
 
 import json
 import importlib
@@ -34,14 +28,13 @@ from PyQt6.QtCore import Qt, QEvent, QObject
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "builder", "config.json")
 
 def load_security_settings():
-    # Defaults: Disable lockdown features for testing.
     defaults = {
         "USE_UI_KEYBOARD": True,
         "KEYBOARD_BLOCKER_MODE": 1,
-        "ENABLE_MOUSE_LOCKER": False,       # Disabled by default.
-        "ENABLE_SLEEP_BLOCKER": False,        # Disabled by default.
-        "ENABLE_SECURITY_MONITOR": False,     # Disabled by default.
-        "CLOSE_BUTTON_DISABLED": False,       # Disabled by default.
+        "ENABLE_MOUSE_LOCKER": False,
+        "ENABLE_SLEEP_BLOCKER": False,
+        "ENABLE_SECURITY_MONITOR": False,
+        "CLOSE_BUTTON_DISABLED": False,
         "ENABLE_LOGGER": True
     }
     if os.path.exists(CONFIG_PATH):
@@ -61,7 +54,6 @@ ENABLE_SLEEP_BLOCKER = settings["ENABLE_SLEEP_BLOCKER"]
 ENABLE_SECURITY_MONITOR = settings["ENABLE_SECURITY_MONITOR"]
 CLOSE_BUTTON_DISABLED = settings["CLOSE_BUTTON_DISABLED"]
 ENABLE_LOGGER = settings["ENABLE_LOGGER"]
-# --- End Dynamic Loader ---
 
 from shared.utils.close_button_blocker import disable_close_button, enable_close_button
 from shared.utils.keyboard_blocker import start_keyboard_blocker, stop_keyboard_blocker
@@ -75,8 +67,7 @@ from shared.theme.theme import load_stylesheet
 # Use get_data_path() to locate tasks.json.
 TASKS_FILE = get_data_path(os.path.join("builder", "tasks", "tasks.json"))
 
-def normalize_task_type(task_type):
-    """Normalize a task type string: lowercase and replace spaces with underscores."""
+def normalize_task_type(task_type: str) -> str:
     return task_type.lower().replace(" ", "_")
 
 def load_all_tasks():
@@ -94,11 +85,21 @@ def load_all_tasks():
             return data
         return []
     except Exception as e:
-        if ENABLE_LOGGER:
-            log_event(f"Error reading tasks file: {e}")
+        print("Error loading tasks:", e)
         return []
 
 def discover_task_modules():
+    """
+    Discover task modules by scanning the shared/tasks folder.
+    If running frozen, return a static manifest.
+    """
+    if getattr(sys, "frozen", False):
+        return {
+            "location_collection": "shared.tasks.location_collection",
+            "multiple_choice": "shared.tasks.multiple_choice",
+            "name_collection": "shared.tasks.name_collection",
+            "short_answer": "shared.tasks.short_answer"
+        }
     task_modules = {}
     tasks_folder = get_data_path(os.path.join("shared", "tasks"))
     for filepath in glob.glob(os.path.join(tasks_folder, "*.py")):
@@ -111,12 +112,10 @@ def discover_task_modules():
         try:
             spec.loader.exec_module(module)
             if hasattr(module, "TASK_TYPE"):
-                # Normalize the module's TASK_TYPE for consistent lookup.
                 normalized = normalize_task_type(module.TASK_TYPE)
                 task_modules[normalized] = f"shared.tasks.{module_name}"
         except Exception as e:
-            if ENABLE_LOGGER:
-                log_event(f"Error importing {filename}: {e}")
+            print(f"Error importing {filename}: {e}")
     return task_modules
 
 currentLineEdit = None
@@ -176,7 +175,6 @@ class GameUI(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
-        # Load stylesheet from bundled data.
         stylesheet_path = get_data_path(os.path.join("shared", "theme", "styles.qss"))
         if os.path.exists(stylesheet_path):
             try:
@@ -219,20 +217,18 @@ class GameUI(QMainWindow):
     def center_window(self):
         screen_geometry = QApplication.primaryScreen().availableGeometry()
         window_geometry = self.frameGeometry()
-        center_point = screen_geometry.center()
-        window_geometry.moveCenter(center_point)
+        center = screen_geometry.center()
+        window_geometry.moveCenter(center)
         self.move(window_geometry.topLeft())
 
     def load_next_task(self):
-        # Clear current task widget.
         for i in reversed(range(self.task_layout.count())):
             widget = self.task_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
         if self.current_task_index < len(self.tasks):
             task_data = self.tasks[self.current_task_index]
-            # Normalize and lookup task type.
-            task_type = task_data.get("TASK_TYPE", "short answer").lower()
+            task_type = task_data.get("TASK_TYPE", "short_answer")
             module_import = self.discovered_tasks.get(task_type)
             if module_import:
                 try:
@@ -294,13 +290,10 @@ class GameUI(QMainWindow):
     def update_gift_card_reveal(self):
         full_code = self.gift_card["code"]
         total = len(full_code)
-        if self.tasks:
-            fraction = self.current_task_index / len(self.tasks)
-        else:
-            fraction = 1
+        fraction = self.current_task_index / len(self.tasks) if self.tasks else 1
         revealed = int(total * fraction)
         visible = full_code[:revealed]
-        hidden = ''.join(ch if ch == '-' else '█' for ch in full_code[revealed:])
+        hidden = "".join(ch if ch == '-' else '█' for ch in full_code[revealed:])
         self.progress_label.setText(f"Gift Card Code: {visible}{hidden}  ({int(fraction*100)}%)")
 
     def complete_game(self):
@@ -320,14 +313,18 @@ class GameUI(QMainWindow):
         final_label = QLabel(f"Congratulations! You've completed the game.\n{final_text}")
         final_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.layout.addWidget(final_label)
-        exit_button = QPushButton("Exit")
-        exit_button.clicked.connect(self.close)
-        self.layout.addWidget(exit_button)
+        exit_btn = QPushButton("Exit")
+        exit_btn.clicked.connect(self.close)
+        self.layout.addWidget(exit_btn)
         self.unlock_system()
         if ENABLE_LOGGER:
             log_event("Game completed successfully.")
 
     def unlock_system(self):
+        from shared.utils.keyboard_blocker import stop_keyboard_blocker
+        from shared.utils.mouse_locker import stop_mouse_locker
+        from shared.utils.sleep_blocker import stop_sleep_blocker
+        from shared.utils.security_monitor import stop_security_monitor
         if self.keyboard_blocker:
             stop_keyboard_blocker(self.keyboard_blocker)
         if self.mouse_locker_timer:

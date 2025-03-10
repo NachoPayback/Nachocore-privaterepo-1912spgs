@@ -17,14 +17,18 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from shared.theme.theme import load_stylesheet
-from builder.utils import normalize_task_type, display_task_type
-from builder.task_builder import TaskManager, TaskListWidget
-from builder import security_settings
 
-# Path to builder/config.json
+# File path for configuration.
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "builder", "config.json")
 
-# Map slider positions to mode names
+# Import helpers from builder/utils.py
+from builder.utils import normalize_task_type, display_task_type
+# Import TaskManager and TaskListWidget from builder/task_builder.py
+from builder.task_builder import TaskManager, TaskListWidget
+# Import centralized security_settings module.
+from builder import security_settings
+
+# ---------------- Security Mode Mappings ----------------
 SECURITY_MODES = {
     0: "Ethical",
     1: "Unethical",
@@ -41,7 +45,6 @@ def mode_text_color(mode):
     }.get(mode, "black")
 
 def generate_security_summary(mode):
-    """Generate a summary string for Ethical, Unethical, or Grift mode."""
     if mode in ["Ethical", "Unethical", "Grift"]:
         _, _, settings = security_settings.set_mode(mode)
         return (
@@ -55,8 +58,17 @@ def generate_security_summary(mode):
 
 def discover_task_modules():
     """
-    Scans shared/tasks for .py files with TASK_TYPE, returns { normalized_type: import_path }
+    Scans the shared/tasks folder for .py files (excluding __init__.py)
+    and returns a dictionary mapping normalized TASK_TYPE -> module import path.
+    If running frozen, returns a static manifest.
     """
+    if getattr(sys, "frozen", False):
+        return {
+            "location_collection": "shared.tasks.location_collection",
+            "multiple_choice": "shared.tasks.multiple_choice",
+            "name_collection": "shared.tasks.name_collection",
+            "short_answer": "shared.tasks.short_answer"
+        }
     task_modules = {}
     tasks_folder = os.path.join(PROJECT_ROOT, "shared", "tasks")
     for filepath in glob.glob(os.path.join(tasks_folder, "*.py")):
@@ -75,38 +87,37 @@ def discover_task_modules():
             print(f"Error importing {filename}: {e}")
     return task_modules
 
+# ---------------- Persistent Security Header ----------------
 class SecurityHeader(QWidget):
-    """Displays current security mode in a header."""
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setContentsMargins(10, 5, 10, 5)
         self.modeLabel = QLabel("Security Mode: Ethical")
         self.modeLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.modeLabel.setStyleSheet("color: green; font-weight: bold;")
         layout.addWidget(self.modeLabel)
-
     def update_mode(self, mode):
         color = mode_text_color(mode)
         self.modeLabel.setText(f"Security Mode: {mode}")
         self.modeLabel.setStyleSheet(f"color: {color}; font-weight: bold;")
 
+# ---------------- Developer Zone Tab ----------------
 class DevZoneWidget(QWidget):
-    """Developer Zone tab: slider for mode, custom settings, etc."""
     modeChanged = pyqtSignal(str)
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self.init_ui()
         self.load_existing_state()
-
     def init_ui(self):
         layout = QVBoxLayout(self)
         row = QHBoxLayout()
         row.addWidget(QLabel("Set Security Mode:"))
         self.modeSlider = QSlider(Qt.Orientation.Horizontal)
         self.modeSlider.setRange(0, 3)
-        self.modeSlider.setValue(0)
+        self.modeSlider.setTickInterval(1)
+        self.modeSlider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.modeSlider.setSingleStep(1)
         self.modeSlider.valueChanged.connect(self.on_slider_changed)
         row.addWidget(self.modeSlider)
         self.modeDisplay = QLabel(SECURITY_MODES[0])
@@ -134,7 +145,6 @@ class DevZoneWidget(QWidget):
         self.saveButton = QPushButton("Apply Security Mode")
         self.saveButton.clicked.connect(self.save_mode)
         layout.addWidget(self.saveButton)
-
     @pyqtSlot(int)
     def on_slider_changed(self, value):
         mode = SECURITY_MODES.get(value, "Ethical")
@@ -146,7 +156,6 @@ class DevZoneWidget(QWidget):
             self.customContainer.setVisible(False)
             self.summaryLabel.setText(generate_security_summary(mode))
         self.modeChanged.emit(mode)
-
     def load_existing_state(self):
         config = security_settings.load_security_settings()
         mode = config.get("SECURITY_MODE", "Ethical")
@@ -161,7 +170,6 @@ class DevZoneWidget(QWidget):
             self.custom_security_monitor.setChecked(config.get("ENABLE_SECURITY_MONITOR", False))
         else:
             self.summaryLabel.setText(generate_security_summary(mode))
-
     def save_mode(self):
         mode = SECURITY_MODES.get(self.modeSlider.value(), "Ethical")
         if mode == "Custom":
@@ -176,7 +184,6 @@ class DevZoneWidget(QWidget):
             success, message, _ = security_settings.set_mode(mode, custom_settings=custom_settings)
         else:
             success, message, _ = security_settings.set_mode(mode)
-            # Save mode
             config = security_settings.load_security_settings()
             config["SECURITY_MODE"] = mode
             security_settings.save_security_settings(config)
@@ -186,143 +193,109 @@ class DevZoneWidget(QWidget):
         else:
             QMessageBox.critical(self, "Error", message)
 
+# ---------------- Main Builder UI ----------------
 class BuilderUI(QMainWindow):
-    """Single main UI class with all tabs: Task Builder, Gift Card, Export, Dev Zone."""
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Nachocore v1.0")
-        self.setGeometry(200, 200, 900, 600)
-        # Central widget
+        self.setGeometry(100, 100, 900, 600)
         central = QWidget()
-        layout = QVBoxLayout(central)
+        main_layout = QVBoxLayout(central)
         self.setCentralWidget(central)
-        # Security header
         self.header = SecurityHeader()
-        layout.addWidget(self.header)
-        # Tab widget
+        main_layout.addWidget(self.header)
         self.tabs = QTabWidget()
-        layout.addWidget(self.tabs, 1)
-        # Discover tasks
+        main_layout.addWidget(self.tabs, 1)
         self.discovered_tasks = discover_task_modules()
-        # Add tabs
         self.tabs.addTab(self.create_task_tab(), "Task Builder")
         self.tabs.addTab(self.create_gift_card_tab(), "Gift Card Selection")
         self.tabs.addTab(self.create_export_tab(), "Export Options")
         self.tabs.addTab(self.create_dev_zone_tab(), "Developer Zone")
-        # Load stylesheet
         stylesheet = load_stylesheet("shared/theme/styles.qss")
         if stylesheet:
             self.setStyleSheet(stylesheet)
         self.show()
-
     @pyqtSlot(str)
     def update_global_mode(self, mode):
-        """Slot for dev zone's modeChanged signal."""
         self.header.update_mode(mode)
-        # If the export slider exists, sync it
         if hasattr(self, "export_security_slider"):
             idx = list(SECURITY_MODES.values()).index(mode) if mode in SECURITY_MODES.values() else 0
             self.export_security_slider.blockSignals(True)
             self.export_security_slider.setValue(idx)
             self.export_security_slider.blockSignals(False)
-            # Also update label
             self.update_export_mode_label()
             self.load_export_state()
-
     # -------------- Task Builder Tab --------------
     def create_task_tab(self):
         task_tab = QWidget()
         main_layout = QHBoxLayout(task_tab)
-
-        # Left: Task list widget
         self.task_list = TaskListWidget()
         self.task_list.setDragDropMode(TaskListWidget.DragDropMode.InternalMove)
         main_layout.addWidget(self.task_list, 1)
-
-        # Set up TaskManager to load/save tasks
         self.task_manager = TaskManager(PROJECT_ROOT, self.task_list)
         self.task_manager.update_list_widget()
-
-        # Right: Task builder form
-        right_widget = QWidget()
-        self.builder_form_layout = QVBoxLayout(right_widget)
-
-        # Task Type dropdown: friendly names displayed, normalized type stored as userData.
+        right = QWidget()
+        self.builder_form_layout = QVBoxLayout(right)
         self.task_type_dropdown = QComboBox()
-        for norm_type in self.discovered_tasks.keys():
-            friendly = display_task_type(norm_type)
-            self.task_type_dropdown.addItem(friendly, norm_type)
+        for norm in self.discovered_tasks:
+            friendly = display_task_type(norm)
+            self.task_type_dropdown.addItem(friendly, norm)
         self.builder_form_layout.addWidget(QLabel("Task Type:"))
         self.builder_form_layout.addWidget(self.task_type_dropdown)
-
-        # **Connect the dropdown's index change signal to refresh the builder widget**
-        self.task_type_dropdown.currentIndexChanged.connect(self.load_task_template)
-
-        # Container where the task builder widget is shown.
         self.builder_widget_container = QWidget()
         self.builder_widget_layout = QVBoxLayout(self.builder_widget_container)
         self.builder_form_layout.addWidget(self.builder_widget_container)
-
-        # Row with Add/Delete/Clear buttons.
-        button_layout = QHBoxLayout()
+        btn_row = QHBoxLayout()
         self.add_task_btn = QPushButton("Add Task")
         self.delete_task_btn = QPushButton("Delete Task")
         self.clear_tasks_btn = QPushButton("Clear All")
-        button_layout.addWidget(self.add_task_btn)
-        button_layout.addWidget(self.delete_task_btn)
-        button_layout.addWidget(self.clear_tasks_btn)
-        self.builder_form_layout.addLayout(button_layout)
-
-        # Save task list button.
+        btn_row.addWidget(self.add_task_btn)
+        btn_row.addWidget(self.delete_task_btn)
+        btn_row.addWidget(self.clear_tasks_btn)
+        self.builder_form_layout.addLayout(btn_row)
         self.save_task_list_btn = QPushButton("Save Task List")
         self.builder_form_layout.addWidget(self.save_task_list_btn)
-
-        main_layout.addWidget(right_widget, 2)
-
-        # Connect signals.
+        main_layout.addWidget(right, 2)
         self.task_list.itemClicked.connect(self.load_task_details)
         self.add_task_btn.clicked.connect(self.add_task)
         self.delete_task_btn.clicked.connect(self.delete_task)
         self.clear_tasks_btn.clicked.connect(self.clear_all_tasks)
         self.save_task_list_btn.clicked.connect(self.save_tasks)
-
-        # Initial load of the builder widget.
+        # IMPORTANT: update builder widget when dropdown selection changes.
+        self.task_type_dropdown.currentIndexChanged.connect(self.load_task_template)
         self.load_task_template()
         return task_tab
-
     def load_task_template(self):
         for i in reversed(range(self.builder_widget_layout.count())):
-            w = self.builder_widget_layout.itemAt(i).widget()
-            if w:
-                w.deleteLater()
-        norm_type = self.task_type_dropdown.currentData()
-        if norm_type:
-            module_import = self.discovered_tasks.get(norm_type)
+            widget = self.builder_widget_layout.itemAt(i).widget()
+            if widget:
+                widget.deleteLater()
+        norm = self.task_type_dropdown.currentData()
+        if norm:
+            module_import = self.discovered_tasks.get(norm)
             if module_import:
                 try:
                     mod = importlib.import_module(module_import)
-                    task_instance = mod.Task()
-                    if hasattr(task_instance, "get_builder_widget"):
-                        builder_widget = task_instance.get_builder_widget()
-                        self.current_task_builder = task_instance
+                    task_inst = mod.Task()
+                    if hasattr(task_inst, "get_builder_widget"):
+                        widget = task_inst.get_builder_widget()
+                        self.current_task_builder = task_inst
                     else:
-                        builder_widget = QWidget()
+                        widget = QWidget()
                         self.current_task_builder = None
-                    self.builder_widget_layout.addWidget(builder_widget)
+                    self.builder_widget_layout.addWidget(widget)
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Error loading template for {norm_type}: {e}")
-
+                    QMessageBox.critical(self, "Error", f"Error loading template for {norm}: {e}")
     def load_task_details(self, item):
         data = item.data(Qt.ItemDataRole.UserRole)
         if data:
-            norm_type = data.get("TASK_TYPE", "short_answer")
-            idx = self.task_type_dropdown.findData(norm_type)
+            norm = data.get("TASK_TYPE", "short_answer")
+            idx = self.task_type_dropdown.findData(norm)
             if idx >= 0:
                 self.task_type_dropdown.setCurrentIndex(idx)
             self.load_task_template()
             if self.current_task_builder and hasattr(self.current_task_builder, "set_task_data"):
                 self.current_task_builder.set_task_data(data)
-
     def add_task(self):
         if self.current_task_builder and hasattr(self.current_task_builder, "get_task_data"):
             try:
@@ -333,25 +306,21 @@ class BuilderUI(QMainWindow):
                 QMessageBox.warning(self, "Warning", f"Error adding task: {e}")
         else:
             QMessageBox.warning(self, "Warning", "No task template available to add.")
-
     def delete_task(self):
-        cur_item = self.task_list.currentItem()
-        if cur_item:
-            idx = self.task_list.row(cur_item)
+        cur = self.task_list.currentItem()
+        if cur:
+            idx = self.task_list.row(cur)
             self.task_manager.delete_task(idx)
         else:
             QMessageBox.warning(self, "Warning", "No task selected.")
-
     def clear_all_tasks(self):
-        confirm = QMessageBox.question(self, "Confirm", "Clear all tasks?",
-                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if confirm == QMessageBox.StandardButton.Yes:
+        conf = QMessageBox.question(self, "Confirm", "Clear all tasks?",
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if conf == QMessageBox.StandardButton.Yes:
             self.task_manager.clear_tasks()
-
     def save_tasks(self):
         self.task_manager.save_tasks()
         QMessageBox.information(self, "Saved", "Task list saved.")
-
     # -------------- Gift Card Selection Tab --------------
     def create_gift_card_tab(self):
         from builder.gift_card import load_gift_cards
@@ -365,14 +334,13 @@ class BuilderUI(QMainWindow):
         layout.addWidget(QLabel("Select Gift Card:"))
         layout.addWidget(self.gift_card_dropdown)
         self.gift_card_group = QGroupBox("Gift Card Details")
-        f = QFormLayout()
+        form = QFormLayout(self.gift_card_group)
         self.custom_name_input = QLineEdit()
         self.code_input = QLineEdit()
         self.pin_input = QLineEdit()
-        f.addRow("Gift Card Name:", self.custom_name_input)
-        f.addRow("Gift Card Code:", self.code_input)
-        f.addRow("PIN (if applicable):", self.pin_input)
-        self.gift_card_group.setLayout(f)
+        form.addRow("Gift Card Name:", self.custom_name_input)
+        form.addRow("Gift Card Code:", self.code_input)
+        form.addRow("PIN (if applicable):", self.pin_input)
         layout.addWidget(self.gift_card_group)
         self.randomize_button = QPushButton("Randomize Code")
         self.randomize_button.clicked.connect(self.randomize_code)
@@ -381,7 +349,6 @@ class BuilderUI(QMainWindow):
         save_btn.clicked.connect(self.save_gift_card)
         layout.addWidget(save_btn)
         return tab
-
     def update_gift_card_fields(self):
         from builder.gift_card import update_final_gift_card
         sel = self.gift_card_dropdown.currentText()
@@ -404,7 +371,6 @@ class BuilderUI(QMainWindow):
             self.code_input.clear()
             self.pin_input.clear()
             self.pin_input.setVisible(True)
-
     def randomize_code(self):
         from builder.gift_card import generate_random_code, generate_random_pin
         sel = self.gift_card_dropdown.currentText()
@@ -412,7 +378,6 @@ class BuilderUI(QMainWindow):
             card_data = self.gift_cards[sel]
             self.code_input.setText(generate_random_code(card_data))
             self.pin_input.setText(generate_random_pin(card_data))
-
     def save_gift_card(self):
         from builder.gift_card import update_final_gift_card
         sel = self.gift_card_dropdown.currentText()
@@ -426,7 +391,6 @@ class BuilderUI(QMainWindow):
         else:
             final = update_final_gift_card(sel)
         QMessageBox.information(self, "Info", f"Gift Card Saved!\n{final}")
-
     # -------------- Export Options Tab --------------
     def create_export_tab(self):
         from builder.export import export_exe
@@ -446,7 +410,7 @@ class BuilderUI(QMainWindow):
         layout.addWidget(self.export_mode_label)
         self.update_export_mode_label()
         self.export_customContainer = QWidget()
-        f = QFormLayout(self.export_customContainer)
+        form = QFormLayout(self.export_customContainer)
         self.export_uiKeyboard = QCheckBox("Use UI Keyboard")
         self.export_keyboard_blocker = QComboBox()
         self.export_keyboard_blocker.addItem("Block All (Mode 1)", 1)
@@ -454,11 +418,11 @@ class BuilderUI(QMainWindow):
         self.export_mouse_locker = QCheckBox("Enable Mouse Locker")
         self.export_sleep_blocker = QCheckBox("Enable Sleep Blocker")
         self.export_security_monitor = QCheckBox("Enable Security Monitor")
-        f.addRow(self.export_uiKeyboard)
-        f.addRow("Keyboard Blocker Mode:", self.export_keyboard_blocker)
-        f.addRow(self.export_mouse_locker)
-        f.addRow(self.export_sleep_blocker)
-        f.addRow(self.export_security_monitor)
+        form.addRow(self.export_uiKeyboard)
+        form.addRow("Keyboard Blocker Mode:", self.export_keyboard_blocker)
+        form.addRow(self.export_mouse_locker)
+        form.addRow(self.export_sleep_blocker)
+        form.addRow(self.export_security_monitor)
         self.export_customContainer.setVisible(False)
         layout.addWidget(self.export_customContainer)
         self.load_export_state()
@@ -480,24 +444,25 @@ class BuilderUI(QMainWindow):
                     "ENABLE_SECURITY_MONITOR": self.export_security_monitor.isChecked()
                 }
             else:
+                from builder import security_settings
                 _, _, opts = security_settings.set_mode(mode)
             success, output = export_exe(name, PROJECT_ROOT, opts, disable_lockdown=False)
             d = QDialog(self)
             d.setWindowTitle("Export Result")
             dlayout = QVBoxLayout(d)
-            label = QLabel("Export Successful!" if success else "Export Failed!")
-            dlayout.addWidget(label)
-            text = QPlainTextEdit()
-            text.setPlainText(output)
-            text.setReadOnly(True)
-            dlayout.addWidget(text)
+            lbl = QLabel("Export Successful!" if success else "Export Failed!")
+            dlayout.addWidget(lbl)
+            txt = QPlainTextEdit()
+            txt.setPlainText(output)
+            txt.setReadOnly(True)
+            dlayout.addWidget(txt)
             row = QHBoxLayout()
-            cpy_btn = QPushButton("Copy Output")
-            cpy_btn.clicked.connect(lambda: QApplication.clipboard().setText(output))
-            close_btn = QPushButton("Close")
-            close_btn.clicked.connect(d.close)
-            row.addWidget(cpy_btn)
-            row.addWidget(close_btn)
+            cpy = QPushButton("Copy Output")
+            cpy.clicked.connect(lambda: QApplication.clipboard().setText(output))
+            close = QPushButton("Close")
+            close.clicked.connect(d.close)
+            row.addWidget(cpy)
+            row.addWidget(close)
             dlayout.addLayout(row)
             d.resize(600, 400)
             d.exec()
@@ -564,8 +529,8 @@ class BuilderUI(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    ui = BuilderUI()
-    ui.show()
+    window = BuilderUI()
+    window.show()
     sys.exit(app.exec())
 
 if __name__ == "__main__":

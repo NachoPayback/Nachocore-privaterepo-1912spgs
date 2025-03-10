@@ -60,5 +60,16 @@
         "question": "Where are you located 2?",
         "answer": "yoink",
         "TASK_TYPE": "location_collection"
+    },
+    {
+        "question": "Did it all work?",
+        "options": [
+            "Yes!",
+            "KYS"
+        ],
+        "correct_indices": [
+            0
+        ],
+        "TASK_TYPE": "multiple_choice"
     }
 ]

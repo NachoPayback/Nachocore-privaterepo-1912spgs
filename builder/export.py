@@ -1,15 +1,4 @@
 #!/usr/bin/env python3
-"""
-Export Module
-
-This module implements the export functionality for the game.
-It packages the game into an executable using PyInstaller.
-It gathers all necessary hidden imports and data files so that the final EXE includes:
-  - All task modules (automatically discovered)
-  - All shared modules, gift card data, stylesheets, etc.
-This version uses get_data_path() for dynamic resource location.
-"""
-
 import os
 import sys
 import json
@@ -17,42 +6,37 @@ import subprocess
 import glob
 import importlib.util
 
-# Determine project root (parent directory)
-current_dir = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(current_dir, ".."))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+# Define PROJECT_ROOT (assuming export.py is in the builder folder)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-# Import get_data_path from shared/utils/data_helpers.
+# Try to import get_data_path from shared/utils/data_helpers; if not available, define fallback.
 try:
     from shared.utils.data_helpers import get_data_path
 except ImportError:
     def get_data_path(relative_path):
         return os.path.join(PROJECT_ROOT, relative_path)
 
-# Safeguard: re-check if shared.config can be imported.
-try:
-    import shared.config
-except ImportError as e:
-    if PROJECT_ROOT not in sys.path:
-        sys.path.insert(0, PROJECT_ROOT)
-    try:
-        import shared.config
-    except ImportError as e:
-        print("Failed to import shared.config:", e)
-        sys.exit(1)
-
-def normalize_task_type(task_type):
-    """Normalize a task type string: lowercase and replace spaces with underscores."""
-    return task_type.lower().replace(" ", "_")
+# Import the normalization helper from builder/utils.py
+from builder.utils import normalize_task_type
 
 def get_hidden_imports(project_root):
     hidden_imports = []
     tasks_folder = get_data_path(os.path.join("shared", "tasks"))
-    print("Scanning for tasks in:", tasks_folder)
+    print("DEBUG: Scanning tasks folder:", tasks_folder)
+    
+    # In a frozen EXE, return a static manifest.
+    if getattr(sys, "frozen", False):
+        static_manifest = {
+            "location_collection": "shared.tasks.location_collection",
+            "multiple_choice": "shared.tasks.multiple_choice",
+            "name_collection": "shared.tasks.name_collection",
+            "short_answer": "shared.tasks.short_answer"
+        }
+        print("DEBUG: Running in frozen state. Using static manifest:", static_manifest)
+        return list(static_manifest.values())
+    
     for filepath in glob.glob(os.path.join(tasks_folder, "*.py")):
         filename = os.path.basename(filepath)
-        print("Found:", filepath)
         if filename == "__init__.py":
             continue
         module_name = os.path.splitext(filename)[0]
@@ -61,14 +45,17 @@ def get_hidden_imports(project_root):
         try:
             spec.loader.exec_module(module)
             if hasattr(module, "TASK_TYPE"):
-                # Normalize the task type defined in the module.
                 normalized = normalize_task_type(module.TASK_TYPE)
-                # We'll use the module path directly; matching is done by normalized string.
-                hidden_imports.append(f"shared.tasks.{module_name}")
+                hidden_import = f"shared.tasks.{module_name}"
+                print(f"DEBUG: Found module '{module_name}' with TASK_TYPE '{module.TASK_TYPE}' normalized to '{normalized}'. Adding hidden import: {hidden_import}")
+                hidden_imports.append(hidden_import)
+            else:
+                print(f"DEBUG: Module '{module_name}' does not define TASK_TYPE. Skipping.")
         except Exception as e:
-            print(f"Error importing {filename}: {e}")
-    # Include always-needed shared modules.
-    other_modules = [
+            print(f"DEBUG: Error importing {filename}: {e}")
+    print("DEBUG: Final hidden imports list:", hidden_imports)
+    # Include additional shared modules if needed.
+    additional_modules = [
         "shared.config",
         "shared.theme.theme",
         "shared.utils.close_button_blocker",
@@ -79,19 +66,22 @@ def get_hidden_imports(project_root):
         "shared.utils.logger",
         "shared.utils.ui_keyboard",
     ]
-    hidden_imports.extend(other_modules)
-    # Include gift card handling module.
-    hidden_imports.append("builder.gift_card")
+    hidden_imports.extend(additional_modules)
     return hidden_imports
 
 def get_data_files(project_root):
+    """
+    Returns a list of additional data files to bundle with the EXE.
+    Format: "absolute_path;relative_destination_path"
+    """
     data_files = []
     folders = [
         ("builder/tasks", "builder/tasks"),
         ("shared/theme", "shared/theme"),
-        ("builder/data/gift_cards", "builder/data/gift_cards")
+        ("builder/data/gift_cards", "builder/data/gift_cards"),
+        ("builder/config.json", "builder"),
     ]
-    for src_rel, tgt_rel in folders:
+    for src_rel, dest_rel in folders:
         src_abs = os.path.join(project_root, src_rel)
         if not os.path.exists(src_abs):
             continue
@@ -104,11 +94,7 @@ def get_data_files(project_root):
     return data_files
 
 def export_exe(custom_name, project_root, security_options, disable_lockdown=False):
-    if disable_lockdown:
-        security_options["ENABLE_MOUSE_LOCKER"] = False
-        security_options["ENABLE_SLEEP_BLOCKER"] = False
-        security_options["ENABLE_SECURITY_MONITOR"] = False
-
+    # Update configuration in builder/config.json
     config_path = os.path.join(project_root, "builder", "config.json")
     try:
         if os.path.exists(config_path):
@@ -116,7 +102,8 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
                 config = json.load(f)
         else:
             config = {}
-    except Exception:
+    except Exception as e:
+        print("DEBUG: Error reading config.json:", e)
         config = {}
     config.update(security_options)
     try:
@@ -125,13 +112,17 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
     except Exception as e:
         return False, f"Error writing config: {e}"
 
+    # Set main script (game.py) as entry point
     game_script = os.path.join(project_root, "game", "game.py")
+
     hidden_imports = get_hidden_imports(project_root)
     data_files = get_data_files(project_root)
 
+    # Create export directory
     export_dir = os.path.join(project_root, "exported")
     os.makedirs(export_dir, exist_ok=True)
 
+    # Build PyInstaller command
     cmd = [
         "pyinstaller",
         "--onefile",
@@ -139,12 +130,14 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
         "--name", custom_name,
         "--paths", project_root,
     ]
-    for module in hidden_imports:
-        cmd.extend(["--hidden-import", module])
-    for data in data_files:
-        cmd.extend(["--add-data", data])
+    for imp in hidden_imports:
+        cmd.extend(["--hidden-import", imp])
+    for df in data_files:
+        cmd.extend(["--add-data", df])
     cmd.append(game_script)
 
+    print("DEBUG: Running PyInstaller with command:")
+    print(" ".join(cmd))
     try:
         result = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return True, result.stdout
@@ -152,16 +145,17 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
         return False, f"PyInstaller error: {e.stderr}"
 
 if __name__ == "__main__":
-    security_options = {
+    security_opts = {
         "ENABLE_SECURITY_MONITOR": True,
         "ENABLE_MOUSE_LOCKER": True,
         "ENABLE_SLEEP_BLOCKER": True,
         "CLOSE_BUTTON_DISABLED": True,
         "USE_UI_KEYBOARD": True,
-        "KEYBOARD_BLOCKER_MODE": 1
+        "KEYBOARD_BLOCKER_MODE": 1,
+        "SECURITY_MODE": "Ethical"
     }
-    success, message = export_exe("ScammerPaybackGame", PROJECT_ROOT, security_options, disable_lockdown=False)
+    success, output = export_exe("ScammerPaybackGame", PROJECT_ROOT, security_opts, disable_lockdown=False)
     if success:
         print("Export successful!")
     else:
-        print("Export failed:", message)
+        print("Export failed:", output)
