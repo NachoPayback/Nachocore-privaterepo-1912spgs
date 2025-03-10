@@ -75,20 +75,24 @@ from shared.theme.theme import load_stylesheet
 # Use get_data_path() to locate tasks.json.
 TASKS_FILE = get_data_path(os.path.join("builder", "tasks", "tasks.json"))
 
+def normalize_task_type(task_type):
+    """Normalize a task type string: lowercase and replace spaces with underscores."""
+    return task_type.lower().replace(" ", "_")
+
 def load_all_tasks():
     if not os.path.exists(TASKS_FILE):
         return []
     try:
         with open(TASKS_FILE, "r") as f:
             data = json.load(f)
-            # Convert any legacy "type" key to "TASK_TYPE"
-            if isinstance(data, list):
-                for task in data:
-                    if "type" in task:
-                        task["TASK_TYPE"] = task.pop("type")
-                return data
-            else:
-                return []
+        if isinstance(data, list):
+            for task in data:
+                if "type" in task:
+                    task["TASK_TYPE"] = normalize_task_type(task.pop("type"))
+                elif "TASK_TYPE" in task:
+                    task["TASK_TYPE"] = normalize_task_type(task["TASK_TYPE"])
+            return data
+        return []
     except Exception as e:
         if ENABLE_LOGGER:
             log_event(f"Error reading tasks file: {e}")
@@ -107,7 +111,9 @@ def discover_task_modules():
         try:
             spec.loader.exec_module(module)
             if hasattr(module, "TASK_TYPE"):
-                task_modules[module.TASK_TYPE] = f"shared.tasks.{module_name}"
+                # Normalize the module's TASK_TYPE for consistent lookup.
+                normalized = normalize_task_type(module.TASK_TYPE)
+                task_modules[normalized] = f"shared.tasks.{module_name}"
         except Exception as e:
             if ENABLE_LOGGER:
                 log_event(f"Error importing {filename}: {e}")
@@ -225,8 +231,8 @@ class GameUI(QMainWindow):
                 widget.setParent(None)
         if self.current_task_index < len(self.tasks):
             task_data = self.tasks[self.current_task_index]
-            # Updated to use "TASK_TYPE" instead of "type"
-            task_type = task_data.get("TASK_TYPE", "Short Answer")
+            # Normalize and lookup task type.
+            task_type = task_data.get("TASK_TYPE", "short answer").lower()
             module_import = self.discovered_tasks.get(task_type)
             if module_import:
                 try:
@@ -235,9 +241,9 @@ class GameUI(QMainWindow):
                     if hasattr(task_instance, "set_task_data"):
                         try:
                             task_instance.set_task_data(task_data)
-                        except Exception as e:
+                        except Exception as ex:
                             if ENABLE_LOGGER:
-                                log_event(f"Error applying saved data for {task_type}: {e}")
+                                log_event(f"Error applying saved data for {task_type}: {ex}")
                     task_widget = task_instance.get_widget(self.task_finished)
                     self.task_layout.addWidget(task_widget)
                     install_ui_keyboard(task_widget, self.ui_keyboard)

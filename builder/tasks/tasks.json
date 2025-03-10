@@ -10,7 +10,7 @@
         "correct_indices": [
             0
         ],
-        "TASK_TYPE": "Multiple Choice"
+        "TASK_TYPE": "multiple_choice"
     },
     {
         "question": "What color is the brand?",
@@ -23,7 +23,7 @@
             1,
             2
         ],
-        "TASK_TYPE": "Multiple Choice"
+        "TASK_TYPE": "multiple_choice"
     },
     {
         "question": "Say hi!",
@@ -33,32 +33,32 @@
             "sup"
         ],
         "has_correct": true,
-        "TASK_TYPE": "Short Answer"
+        "TASK_TYPE": "short_answer"
     },
     {
         "question": "Say anything",
         "acceptable_answers": [],
         "has_correct": false,
-        "TASK_TYPE": "Short Answer"
+        "TASK_TYPE": "short_answer"
     },
     {
         "question": "What is your real name?",
         "answer": "",
-        "TASK_TYPE": "Name Collection"
+        "TASK_TYPE": "name_collection"
     },
     {
         "question": "Where are you located?",
         "answer": "",
-        "TASK_TYPE": "Location Collection"
+        "TASK_TYPE": "location_collection"
     },
     {
         "question": "What is your real name 2?",
         "answer": "Gottem",
-        "TASK_TYPE": "Name Collection"
+        "TASK_TYPE": "name_collection"
     },
     {
         "question": "Where are you located 2?",
         "answer": "yoink",
-        "TASK_TYPE": "Location Collection"
+        "TASK_TYPE": "location_collection"
     }
 ]

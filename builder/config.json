@@ -1,14 +1,14 @@
 {
     "selected_gift_card": {
-        "name": "Apple",
-        "code": "XZGM-GUNS-ZKJZ-LPAS",
-        "pin": "",
-        "pin_required": false
+        "name": "Amazon",
+        "code": "CBM5-84EY62-BULQ",
+        "pin": "0522",
+        "pin_required": true
     },
-    "USE_UI_KEYBOARD": true,
+    "USE_UI_KEYBOARD": false,
     "KEYBOARD_BLOCKER_MODE": 1,
     "ENABLE_MOUSE_LOCKER": false,
-    "ENABLE_SLEEP_BLOCKER": true,
+    "ENABLE_SLEEP_BLOCKER": false,
     "ENABLE_SECURITY_MONITOR": false,
     "CLOSE_BUTTON_DISABLED": false,
     "ENABLE_LOGGER": true,
