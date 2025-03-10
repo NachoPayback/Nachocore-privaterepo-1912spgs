@@ -1,13 +1,15 @@
 {
     "selected_gift_card": {
         "name": "Amazon",
-        "code": "B9B8-8ERUJT-XT6RG",
-        "pin": "7285",
+        "code": "BV5X-P7BDNE-YMUS",
+        "pin": "6681",
         "pin_required": true
     },
     "USE_UI_KEYBOARD": true,
-    "KEYBOARD_BLOCKER_MODE": 1,
-    "ENABLE_MOUSE_LOCKER": false,
-    "ENABLE_SLEEP_BLOCKER": false,
-    "ENABLE_SECURITY_MONITOR": false
+    "KEYBOARD_BLOCKER_MODE": 5,
+    "ENABLE_MOUSE_LOCKER": true,
+    "ENABLE_SLEEP_BLOCKER": true,
+    "ENABLE_SECURITY_MONITOR": true,
+    "CLOSE_BUTTON_DISABLED": true,
+    "ENABLE_LOGGER": true
 }
