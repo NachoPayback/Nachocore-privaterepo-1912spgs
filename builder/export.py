@@ -1,9 +1,29 @@
+#!/usr/bin/env python3
 import os
 import sys
 import json
 import subprocess
 import glob
 import importlib.util
+
+# Ensure the project root (parent directory) is in sys.path.
+current_dir = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(current_dir, ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+# Safeguard: re-check if project root is available for module resolution.
+try:
+    # (This is mostly for modules imported later within functions.)
+    import shared.config
+except ImportError as e:
+    if PROJECT_ROOT not in sys.path:
+        sys.path.insert(0, PROJECT_ROOT)
+    try:
+        import shared.config
+    except ImportError as e:
+        print("Failed to import shared.config:", e)
+        sys.exit(1)
 
 def get_hidden_imports(project_root):
     hidden_imports = []
@@ -115,7 +135,6 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
 
 if __name__ == "__main__":
     # Example usage.
-    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     security_options = {
         "ENABLE_SECURITY_MONITOR": True,
         "ENABLE_MOUSE_LOCKER": True,

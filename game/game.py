@@ -1,5 +1,26 @@
+#!/usr/bin/env python3
 import os
 import sys
+
+# Ensure the project root (parent directory) is in sys.path.
+current_dir = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(current_dir, ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+# Safeguard for importing shared modules.
+try:
+    from shared.utils.data_helpers import get_data_path
+except ImportError as e:
+    # Attempt to re-add PROJECT_ROOT and try again.
+    if PROJECT_ROOT not in sys.path:
+        sys.path.insert(0, PROJECT_ROOT)
+    try:
+        from shared.utils.data_helpers import get_data_path
+    except ImportError as e:
+        print("Failed to import shared.utils.data_helpers:", e)
+        sys.exit(1)
+
 import json
 import importlib
 import glob
@@ -9,16 +30,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QEvent, QObject
 
-# Import our data helper.
-from shared.utils.data_helpers import get_data_path
-
-# Set up project root.
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-print("sys.path:", sys.path)
-
-# --- New: Dynamic Security Settings Loader ---
+# --- Dynamic Security Settings Loader ---
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "builder", "config.json")
 
 def load_security_settings():
