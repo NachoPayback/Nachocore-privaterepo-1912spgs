@@ -67,23 +67,21 @@ def mode_text_color(mode):
     return colors.get(mode, "black")
 
 def generate_security_summary(mode):
-    # For Ethical, Unethical, and Grift modes, load the defaults.
+    """Generate a summary string of active security settings for non-Custom modes."""
     if mode in ["Ethical", "Unethical", "Grift"]:
         _, _, settings = security_settings.set_mode(mode)
-    else:
-        settings = security_settings.load_security_settings()
-    summary = (
-        f"UI Keyboard: {'On' if settings.get('USE_UI_KEYBOARD', False) else 'Off'} | "
-        f"Keyboard Blocker: {settings.get('KEYBOARD_BLOCKER_MODE', 0)} | "
-        f"Mouse Locker: {'On' if settings.get('ENABLE_MOUSE_LOCKER', False) else 'Off'} | "
-        f"Sleep Blocker: {'On' if settings.get('ENABLE_SLEEP_BLOCKER', False) else 'Off'} | "
-        f"Security Monitor: {'On' if settings.get('ENABLE_SECURITY_MONITOR', False) else 'Off'}"
-    )
-    return summary
+        summary = (
+            f"UI Keyboard: {'On' if settings.get('USE_UI_KEYBOARD', False) else 'Off'} | "
+            f"Keyboard Blocker: {settings.get('KEYBOARD_BLOCKER_MODE', 0)} | "
+            f"Mouse Locker: {'On' if settings.get('ENABLE_MOUSE_LOCKER', False) else 'Off'} | "
+            f"Sleep Blocker: {'On' if settings.get('ENABLE_SLEEP_BLOCKER', False) else 'Off'} | "
+            f"Security Monitor: {'On' if settings.get('ENABLE_SECURITY_MONITOR', False) else 'Off'}"
+        )
+        return summary
+    return ""
 
 # ---------------- Persistent Security Header ----------------
-# This header displays the current security mode and, for Ethical, Unethical,
-# and Grift modes, a summary of which settings are active.
+# Displays only the current security mode.
 class SecurityHeader(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -96,15 +94,10 @@ class SecurityHeader(QWidget):
     
     def update_mode(self, mode):
         color = mode_text_color(mode)
-        summary = ""
-        if mode in ["Ethical", "Unethical", "Grift"]:
-            summary = generate_security_summary(mode)
-        self.modeLabel.setText(f"Security Mode: {mode}" + (f" - {summary}" if summary else ""))
+        self.modeLabel.setText(f"Security Mode: {mode}")
         self.modeLabel.setStyleSheet(f"color: {color}; font-weight: bold;")
 
 # ---------------- Developer Zone Tab ----------------
-# This widget uses a slider to select the global security mode. When in Custom mode,
-# additional custom controls appear.
 class DevZoneWidget(QWidget):
     modeChanged = pyqtSignal(str)
     
@@ -115,6 +108,8 @@ class DevZoneWidget(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout(self)
+        
+        # Slider area with label.
         slider_layout = QHBoxLayout()
         slider_label = QLabel("Set Security Mode:")
         slider_layout.addWidget(slider_label)
@@ -129,6 +124,11 @@ class DevZoneWidget(QWidget):
         self.modeDisplay = QLabel(SECURITY_MODES[0])
         slider_layout.addWidget(self.modeDisplay)
         layout.addLayout(slider_layout)
+        
+        # Summary label for non-Custom modes.
+        self.summaryLabel = QLabel("")
+        self.summaryLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.summaryLabel)
         
         # Container for custom security controls (visible only in Custom mode).
         self.customContainer = QWidget()
@@ -161,7 +161,12 @@ class DevZoneWidget(QWidget):
     def on_slider_changed(self, value):
         mode = SECURITY_MODES.get(value, "Ethical")
         self.modeDisplay.setText(mode)
-        self.customContainer.setVisible(mode == "Custom")
+        if mode == "Custom":
+            self.customContainer.setVisible(True)
+            self.summaryLabel.setText("")
+        else:
+            self.customContainer.setVisible(False)
+            self.summaryLabel.setText(generate_security_summary(mode))
         self.modeChanged.emit(mode)
     
     def load_existing_settings(self):
@@ -428,7 +433,7 @@ class BuilderUI(QMainWindow):
         self.custom_exe_name = QLineEdit()
         self.custom_exe_name.setPlaceholderText("e.g., ScammerPaybackGame")
         layout.addWidget(self.custom_exe_name)
-        # Security Mode Slider in Export Options.
+        # Security Mode Slider for Export Options.
         layout.addWidget(QLabel("Select Security Mode:"))
         self.export_security_slider = QSlider(Qt.Orientation.Horizontal)
         self.export_security_slider.setMinimum(0)
@@ -436,12 +441,35 @@ class BuilderUI(QMainWindow):
         self.export_security_slider.setTickInterval(1)
         self.export_security_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.export_security_slider.setSingleStep(1)
-        self.export_security_slider.valueChanged.connect(self.update_export_mode_label)
+        self.export_security_slider.valueChanged.connect(self.on_export_slider_changed)
         layout.addWidget(self.export_security_slider)
         self.export_mode_label = QLabel("")
         self.export_mode_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.export_mode_label)
         self.update_export_mode_label()
+        # Container for custom security controls in Export Options.
+        self.export_customContainer = QWidget()
+        export_customLayout = QFormLayout(self.export_customContainer)
+        self.export_uiKeyboard = QCheckBox("Use UI Keyboard")
+        self.export_uiKeyboard.setChecked(False)
+        self.export_keyboard_blocker = QComboBox()
+        self.export_keyboard_blocker.addItem("Block All (Mode 1)", 1)
+        self.export_keyboard_blocker.addItem("Allow Typeable (Mode 2)", 2)
+        self.export_mouse_locker = QCheckBox("Enable Mouse Locker")
+        self.export_mouse_locker.setChecked(False)
+        self.export_sleep_blocker = QCheckBox("Enable Sleep Blocker")
+        self.export_sleep_blocker.setChecked(False)
+        self.export_security_monitor = QCheckBox("Enable Security Monitor")
+        self.export_security_monitor.setChecked(False)
+        export_customLayout.addRow(self.export_uiKeyboard)
+        export_customLayout.addRow("Keyboard Blocker Mode:", self.export_keyboard_blocker)
+        export_customLayout.addRow(self.export_mouse_locker)
+        export_customLayout.addRow(self.export_sleep_blocker)
+        export_customLayout.addRow(self.export_security_monitor)
+        self.export_customContainer.setVisible(False)
+        layout.addWidget(self.export_customContainer)
+        # When the export slider changes, update custom container visibility.
+        self.export_security_slider.valueChanged.connect(self.on_export_slider_changed)
         # Export button.
         export_button = QPushButton("Export to EXE")
         def on_export():
@@ -453,11 +481,11 @@ class BuilderUI(QMainWindow):
             mode = SECURITY_MODES.get(mode_index, "Ethical")
             if mode == "Custom":
                 security_options = {
-                    "USE_UI_KEYBOARD": True,
-                    "KEYBOARD_BLOCKER_MODE": self.export_keyboard_mode_combo.currentData() if hasattr(self, 'export_keyboard_mode_combo') else 1,
-                    "ENABLE_MOUSE_LOCKER": True,
-                    "ENABLE_SLEEP_BLOCKER": True,
-                    "ENABLE_SECURITY_MONITOR": True
+                    "USE_UI_KEYBOARD": self.export_uiKeyboard.isChecked(),
+                    "KEYBOARD_BLOCKER_MODE": self.export_keyboard_blocker.currentData(),
+                    "ENABLE_MOUSE_LOCKER": self.export_mouse_locker.isChecked(),
+                    "ENABLE_SLEEP_BLOCKER": self.export_sleep_blocker.isChecked(),
+                    "ENABLE_SECURITY_MONITOR": self.export_security_monitor.isChecked()
                 }
             else:
                 from builder import security_settings
@@ -485,10 +513,22 @@ class BuilderUI(QMainWindow):
         export_button.clicked.connect(on_export)
         layout.addWidget(export_button)
         return export_tab
-    
+
+    def on_export_slider_changed(self, value):
+        mode = SECURITY_MODES.get(value, "Ethical")
+        if mode == "Custom":
+            self.export_customContainer.setVisible(True)
+            self.export_mode_label.setText("")
+        else:
+            self.export_customContainer.setVisible(False)
+            self.update_export_mode_label()
+
     def update_export_mode_label(self):
         mode = SECURITY_MODES.get(self.export_security_slider.value(), "Ethical")
-        self.export_mode_label.setText(f"Export Security Mode: {mode}")
+        summary = ""
+        if mode in ["Ethical", "Unethical", "Grift"]:
+            summary = generate_security_summary(mode)
+        self.export_mode_label.setText(f"Export Security Mode: {mode}" + (f" - {summary}" if summary else ""))
         self.export_mode_label.setStyleSheet(f"color: {mode_text_color(mode)}; font-weight: bold;")
     
     # ----------------- Developer Zone Tab -----------------

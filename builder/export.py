@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+"""
+Export Module
+
+This module implements the export functionality for the game.
+The export_exe function exports the game to an executable using PyInstaller.
+It constructs the command with hidden imports and additional data files.
+This version simulates the export process; replace the simulated logic with your actual export commands as needed.
+"""
+
 import os
 import sys
 import json
@@ -12,9 +21,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(current_dir, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-# Safeguard: re-check if project root is available for module resolution.
+# Safeguard: re-check if project root is available.
 try:
-    # (This is mostly for modules imported later within functions.)
     import shared.config
 except ImportError as e:
     if PROJECT_ROOT not in sys.path:
@@ -100,16 +108,16 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
             json.dump(config, f, indent=4)
     except Exception as e:
         return False, f"Error writing config: {e}"
-    
+
     # Set the main script for the EXE.
     game_script = os.path.join(project_root, "game", "game.py")
     hidden_imports = get_hidden_imports(project_root)
     data_files = get_data_files(project_root)
-    
+
     # Define output directories (if needed).
     export_dir = os.path.join(project_root, "exported")
     os.makedirs(export_dir, exist_ok=True)
-    
+
     # Build the PyInstaller command.
     cmd = [
         "pyinstaller",
@@ -118,15 +126,12 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
         "--name", custom_name,
         "--paths", project_root,
     ]
-    
     for module in hidden_imports:
         cmd.extend(["--hidden-import", module])
-    
     for data in data_files:
         cmd.extend(["--add-data", data])
-    
     cmd.append(game_script)
-    
+
     try:
         result = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return True, result.stdout

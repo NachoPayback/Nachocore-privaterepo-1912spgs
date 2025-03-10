@@ -1,13 +1,13 @@
 {
     "selected_gift_card": {
-        "name": "Amazon",
-        "code": "BV5X-P7BDNE-YMUS",
-        "pin": "6681",
+        "name": "Google Play",
+        "code": "98P8-XMVY-BQ9J-AN42",
+        "pin": "2159",
         "pin_required": true
     },
     "USE_UI_KEYBOARD": true,
-    "KEYBOARD_BLOCKER_MODE": 5,
-    "ENABLE_MOUSE_LOCKER": true,
+    "KEYBOARD_BLOCKER_MODE": 1,
+    "ENABLE_MOUSE_LOCKER": false,
     "ENABLE_SLEEP_BLOCKER": true,
     "ENABLE_SECURITY_MONITOR": true,
     "CLOSE_BUTTON_DISABLED": true,

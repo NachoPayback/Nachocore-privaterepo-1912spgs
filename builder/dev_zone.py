@@ -1,13 +1,27 @@
+#!/usr/bin/env python3
+"""
+Developer Zone Module
+
+This module implements the Developer Zone tab for the builder.
+It displays a slider labeled “Set Security Mode:” which lets the builder select
+one of four modes: Ethical, Unethical, Grift, or Custom.
+- For Ethical, Unethical, and Grift modes, a summary of which settings are active is displayed
+  below the slider.
+- When Custom mode is selected, individual controls appear so the builder can choose
+  specific security measures.
+"""
+
 import os
 import sys
 import json
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QPushButton, 
     QCheckBox, QComboBox, QMessageBox, QFormLayout
 )
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
 from builder import security_settings
 
+# Mapping slider values to mode names.
 SECURITY_MODES = {
     0: "Ethical",
     1: "Unethical",
@@ -24,7 +38,22 @@ def mode_text_color(mode):
     }
     return colors.get(mode, "black")
 
+def generate_security_summary(mode):
+    """Generate a summary string of active security settings for non-Custom modes."""
+    if mode in ["Ethical", "Unethical", "Grift"]:
+        _, _, settings = security_settings.set_mode(mode)
+        summary = (
+            f"UI Keyboard: {'On' if settings.get('USE_UI_KEYBOARD', False) else 'Off'} | "
+            f"Keyboard Blocker: {settings.get('KEYBOARD_BLOCKER_MODE', 0)} | "
+            f"Mouse Locker: {'On' if settings.get('ENABLE_MOUSE_LOCKER', False) else 'Off'} | "
+            f"Sleep Blocker: {'On' if settings.get('ENABLE_SLEEP_BLOCKER', False) else 'Off'} | "
+            f"Security Monitor: {'On' if settings.get('ENABLE_SECURITY_MONITOR', False) else 'Off'}"
+        )
+        return summary
+    return ""
+
 class DevZoneWidget(QWidget):
+    # Signal to notify when the global security mode changes.
     modeChanged = pyqtSignal(str)
     
     def __init__(self, parent=None):
@@ -35,7 +64,7 @@ class DevZoneWidget(QWidget):
     def init_ui(self):
         layout = QVBoxLayout(self)
         
-        # Labeled slider for selecting security mode.
+        # Slider area with label.
         slider_layout = QHBoxLayout()
         slider_label = QLabel("Set Security Mode:")
         slider_layout.addWidget(slider_label)
@@ -51,12 +80,18 @@ class DevZoneWidget(QWidget):
         slider_layout.addWidget(self.modeDisplay)
         layout.addLayout(slider_layout)
         
+        # Summary label for non-Custom modes.
+        self.summaryLabel = QLabel("")
+        self.summaryLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.summaryLabel)
+        
         # Container for custom security controls (visible only in Custom mode).
         self.customContainer = QWidget()
         customLayout = QFormLayout(self.customContainer)
         self.custom_uiKeyboard = QCheckBox("Use UI Keyboard")
         self.custom_uiKeyboard.setChecked(False)
         self.custom_keyboard_blocker = QComboBox()
+        # Only two valid options: Mode 1 and Mode 2.
         self.custom_keyboard_blocker.addItem("Block All (Mode 1)", 1)
         self.custom_keyboard_blocker.addItem("Allow Typeable (Mode 2)", 2)
         self.custom_mouse_locker = QCheckBox("Enable Mouse Locker")
@@ -82,8 +117,12 @@ class DevZoneWidget(QWidget):
     def on_slider_changed(self, value):
         mode = SECURITY_MODES.get(value, "Ethical")
         self.modeDisplay.setText(mode)
-        # Show custom controls only when mode is Custom.
-        self.customContainer.setVisible(mode == "Custom")
+        if mode == "Custom":
+            self.customContainer.setVisible(True)
+            self.summaryLabel.setText("")
+        else:
+            self.customContainer.setVisible(False)
+            self.summaryLabel.setText(generate_security_summary(mode))
         self.modeChanged.emit(mode)
     
     def load_existing_settings(self):

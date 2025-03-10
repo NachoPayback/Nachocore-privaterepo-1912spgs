@@ -9,7 +9,7 @@ CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.j
 DEFAULTS = {
     "Ethical": {
         "USE_UI_KEYBOARD": False,
-        "KEYBOARD_BLOCKER_MODE": 0,
+        "KEYBOARD_BLOCKER_MODE": 2,
         "ENABLE_MOUSE_LOCKER": False,
         "ENABLE_SLEEP_BLOCKER": False,
         "ENABLE_SECURITY_MONITOR": False,
@@ -18,7 +18,7 @@ DEFAULTS = {
     },
     "Unethical": {
         "USE_UI_KEYBOARD": True,
-        "KEYBOARD_BLOCKER_MODE": 5,
+        "KEYBOARD_BLOCKER_MODE": 1,
         "ENABLE_MOUSE_LOCKER": True,
         "ENABLE_SLEEP_BLOCKER": True,
         "ENABLE_SECURITY_MONITOR": True,
@@ -28,7 +28,7 @@ DEFAULTS = {
     "Grift": {
         # Placeholder settings for Grift mode; update when stronger protocols are ready.
         "USE_UI_KEYBOARD": True,
-        "KEYBOARD_BLOCKER_MODE": 5,
+        "KEYBOARD_BLOCKER_MODE": 1,
         "ENABLE_MOUSE_LOCKER": True,
         "ENABLE_SLEEP_BLOCKER": True,
         "ENABLE_SECURITY_MONITOR": True,
