@@ -22,7 +22,7 @@ import shutil
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit, QPushButton, QApplication, QMessageBox
 from PyQt6.QtCore import Qt
 
-# Set PROJECT_ROOT (assuming export.py is in builder folder)
+# Set PROJECT_ROOT (assuming export.py is in the builder folder)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -34,6 +34,8 @@ except ImportError:
         return os.path.join(PROJECT_ROOT, relative_path)
 
 from builder.utils import normalize_task_type
+
+# CHANGED: import from generate_manifest in the parent folder
 from generate_manifest import generate_static_manifest
 
 # Helper to center dialogs
@@ -46,7 +48,7 @@ def center_dialog(dialog):
 
 def get_hidden_imports(project_root):
     hidden_imports = [
-        "game.game_ui",  # using package syntax (ensure __init__.py is present)
+        "game.game_ui",
         "game.game_logic",
         "shared.config",
         "shared.theme.theme",
@@ -57,6 +59,7 @@ def get_hidden_imports(project_root):
         "shared.security.security_monitor_security",
         "shared.utils.logger",
         "shared.utils.ui_keyboard",
+        "builder.static_manifest",  # Ensure PyInstaller includes static_manifest
     ]
     tasks_folder = os.path.join(get_data_path("shared/tasks"))
     for filepath in glob.glob(os.path.join(tasks_folder, "*.py")):
@@ -125,7 +128,7 @@ def build_export_summary(project_root):
     tasks_file = get_data_files(project_root)
     tasks_file = get_data_path(os.path.join("builder", "data", "tasks.json"))
     try:
-        with open(tasks_file, "r") as f:
+        with open(tasks_file, "r", encoding="utf-8") as f:
             tasks = json.load(f)
     except Exception as e:
         tasks = []
@@ -182,7 +185,7 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
     config_path = os.path.join(project_root, "builder", "config.json")
     try:
         if os.path.exists(config_path):
-            with open(config_path, "r") as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
         else:
             config = {}
@@ -191,7 +194,7 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
         print("DEBUG: Error reading config.json:", e)
     config.update(security_options)
     try:
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=4)
     except Exception as e:
         return False, f"Error writing config: {e}"
@@ -223,7 +226,7 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
     msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
     if styled_sheet:
         msg_box.setStyleSheet(styled_sheet)
-    center_dialog(msg_box)  # center the confirmation box
+    center_dialog(msg_box)
     confirmation = msg_box.exec()
     if confirmation != QMessageBox.StandardButton.Yes:
         return False, "Export cancelled by user."
@@ -278,14 +281,6 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
         summary_report = build_export_summary(project_root)
         show_export_readout(False, summary_report)
         return False, str(e)
-
-# Helper function to center dialogs
-def center_dialog(dialog):
-    from PyQt6.QtWidgets import QApplication
-    screen_geometry = QApplication.primaryScreen().availableGeometry()
-    dialog_geometry = dialog.frameGeometry()
-    dialog_geometry.moveCenter(screen_geometry.center())
-    dialog.move(dialog_geometry.topLeft())
 
 if __name__ == "__main__":
     security_opts = {
