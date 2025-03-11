@@ -1,19 +1,12 @@
 # builder/ui/export_tab.py
-"""
-Export Options Tab UI Module
-
-This module contains the Export Options tab for:
-- Setting a custom EXE name.
-- Configuring export security mode and options.
-- Initiating the export process.
-"""
-
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QSlider, QFormLayout, QCheckBox, QComboBox, QPushButton, QMessageBox
+import os
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QLineEdit, QSlider,
+    QFormLayout, QCheckBox, QComboBox, QPushButton, QMessageBox
+)
 from PyQt6.QtCore import Qt
-from builder.security_settings import load_security_settings, save_security_settings, set_mode
-from builder.export import export_exe
+from builder import security_settings
 
-# Security mode mappings (repeated from builder.py; could also be centralized in a common module)
 SECURITY_MODES = {
     0: "Ethical",
     1: "Unethical",
@@ -30,7 +23,6 @@ def mode_text_color(mode):
     }.get(mode, "black")
 
 def generate_security_summary(mode):
-    from builder import security_settings
     if mode in ["Ethical", "Unethical", "Grift"]:
         _, _, settings = security_settings.set_mode(mode)
         return (
@@ -44,37 +36,28 @@ def generate_security_summary(mode):
 
 class ExportTab(QWidget):
     def __init__(self, project_root, parent=None):
-        """
-        Initialize the Export Options tab.
-        
-        Args:
-            project_root (str): Project root path.
-        """
         super().__init__(parent)
         self.project_root = project_root
         self.init_ui()
-
+    
     def init_ui(self):
         layout = QVBoxLayout(self)
-        
-        # Custom EXE name field.
         layout.addWidget(QLabel("Enter Custom EXE Name:"))
         self.custom_exe_name = QLineEdit()
         self.custom_exe_name.setPlaceholderText("e.g., ScammerPaybackGame")
         layout.addWidget(self.custom_exe_name)
         
-        # Security mode selection controls.
         layout.addWidget(QLabel("Select Security Mode:"))
         self.export_security_slider = QSlider(Qt.Orientation.Horizontal)
         self.export_security_slider.setRange(0, 3)
         self.export_security_slider.valueChanged.connect(self.on_export_slider_changed)
         layout.addWidget(self.export_security_slider)
+        
         self.export_mode_label = QLabel("")
         self.export_mode_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.export_mode_label)
         self.update_export_mode_label()
         
-        # Custom export options container for "Custom" mode.
         self.export_customContainer = QWidget()
         form = QFormLayout(self.export_customContainer)
         self.export_uiKeyboard = QCheckBox("Use UI Keyboard")
@@ -92,21 +75,15 @@ class ExportTab(QWidget):
         self.export_customContainer.setVisible(False)
         layout.addWidget(self.export_customContainer)
         
-        self.load_export_state()
         self.export_security_slider.valueChanged.connect(self.on_export_slider_changed)
         
-        # Status label.
-        self.export_status_label = QLabel("")
-        self.export_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.export_status_label)
-        
-        # Export button.
         export_btn = QPushButton("Export to EXE")
         export_btn.clicked.connect(self.on_export)
         layout.addWidget(export_btn)
-
+        
+        self.load_export_state()
+    
     def on_export_slider_changed(self, val):
-        """Handle slider changes to update the custom container and export label."""
         mode = SECURITY_MODES.get(val, "Ethical")
         if mode == "Custom":
             self.export_customContainer.setVisible(True)
@@ -115,9 +92,8 @@ class ExportTab(QWidget):
             self.export_customContainer.setVisible(False)
             self.update_export_mode_label()
         self.save_export_state()
-
+    
     def update_export_mode_label(self):
-        """Update the export mode label with a summary."""
         idx = self.export_security_slider.value()
         mode = SECURITY_MODES.get(idx, "Ethical")
         summ = ""
@@ -125,10 +101,9 @@ class ExportTab(QWidget):
             summ = generate_security_summary(mode)
         self.export_mode_label.setText(f"Export Security Mode: {mode}" + (f" - {summ}" if summ else ""))
         self.export_mode_label.setStyleSheet(f"color: {mode_text_color(mode)}; font-weight: bold;")
-
+    
     def load_export_state(self):
-        """Load the current security settings into the export tab."""
-        cfg = load_security_settings()
+        cfg = security_settings.load_security_settings()
         mode = cfg.get("SECURITY_MODE", "Ethical")
         idx = list(SECURITY_MODES.values()).index(mode) if mode in SECURITY_MODES.values() else 0
         self.export_security_slider.setValue(idx)
@@ -144,12 +119,11 @@ class ExportTab(QWidget):
         else:
             self.export_customContainer.setVisible(False)
         self.update_export_mode_label()
-
+    
     def save_export_state(self):
-        """Save the current export settings to the security configuration."""
         idx = self.export_security_slider.value()
         mode = SECURITY_MODES.get(idx, "Ethical")
-        cfg = load_security_settings()
+        cfg = security_settings.load_security_settings()
         cfg["SECURITY_MODE"] = mode
         if mode == "Custom":
             cfg["USE_UI_KEYBOARD"] = self.export_uiKeyboard.isChecked()
@@ -157,10 +131,9 @@ class ExportTab(QWidget):
             cfg["ENABLE_MOUSE_LOCKER"] = self.export_mouse_locker.isChecked()
             cfg["ENABLE_SLEEP_BLOCKER"] = self.export_sleep_blocker.isChecked()
             cfg["ENABLE_SECURITY_MONITOR"] = self.export_security_monitor.isChecked()
-        save_security_settings(cfg)
-
+        security_settings.save_security_settings(cfg)
+    
     def on_export(self):
-        """Initiate the export process using the provided settings."""
         name = self.custom_exe_name.text().strip()
         if not name:
             QMessageBox.warning(self, "Warning", "Please enter a custom EXE name.")
@@ -176,10 +149,7 @@ class ExportTab(QWidget):
                 "ENABLE_SECURITY_MONITOR": self.export_security_monitor.isChecked()
             }
         else:
-            _, _, opts = set_mode(mode)
-        # Call export_exe; it will show its own detailed report dialog.
-        success, output = export_exe(name, self.project_root, opts, disable_lockdown=False)
-        if success:
-            self.export_status_label.setText("Export Successful!")
-        else:
-            self.export_status_label.setText("Export Failed: " + output)
+            _, _, opts = security_settings.set_mode(mode)
+        from builder.export import export_exe
+        success, summary = export_exe(name, self.project_root, opts, disable_lockdown=False)
+        # export_exe shows its own final report.
