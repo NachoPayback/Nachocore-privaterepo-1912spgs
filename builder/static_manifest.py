@@ -4,10 +4,10 @@ TASK_MANIFEST = {'location_collection': 'shared.tasks.location_collection',
  'name_collection': 'shared.tasks.name_collection',
  'short_answer': 'shared.tasks.short_answer'}
 
-GIFT_CARD_STATIC = {'code': 'B6DR4-BLH3F-MCQT6',
- 'name': 'Target',
- 'pin': '46461478',
- 'pin_required': True}
+GIFT_CARD_STATIC = {'code': 'XW6N-SNYP-CJWY-KCYS',
+ 'name': 'Apple',
+ 'pin': '',
+ 'pin_required': False}
 
 SECURITY_SETTINGS_STATIC = {'CLOSE_BUTTON_DISABLED': False,
  'ENABLE_LOGGER': True,

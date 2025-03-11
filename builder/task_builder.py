@@ -4,62 +4,62 @@ import os
 import json
 import glob
 import importlib.util
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QListWidget, QListWidgetItem, QWidget, QLabel, QHBoxLayout
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QMessageBox
 from builder.utils import normalize_task_type, display_task_type
 
-class TaskListItemWidget(QWidget):
-    """
-    Custom widget for displaying a task in the task list.
-    It shows the friendly task type and the task's question (if provided).
-    If there is no question, it shows a default description.
-    """
-    def __init__(self, task: dict, parent=None):
-        super().__init__(parent)
-        self.task = task
-        self.init_ui()
+class TaskListTable(QTableWidget):
+    # Signal for double-clicking a row (to edit a task)
+    rowDoubleClicked = pyqtSignal(int)
     
-    def init_ui(self):
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(5, 2, 5, 2)
-        # Label for the task type.
-        task_type = self.task.get("TASK_TYPE", "unknown")
-        friendly_type = display_task_type(task_type)
-        self.type_label = QLabel(friendly_type)
-        self.type_label.setStyleSheet("font-weight: bold;")
-        self.type_label.setFixedWidth(150)  # Fixed width for alignment.
-        layout.addWidget(self.type_label)
-        
-        # Label for the question or description.
-        question = self.task.get("question")
-        if not question:
-            question = "No question provided – displays default functionality."
-        self.question_label = QLabel(question)
-        self.question_label.setWordWrap(True)
-        layout.addWidget(self.question_label)
-
-class TaskListWidget(QListWidget):
-    """
-    Custom QListWidget for displaying tasks.
-    """
-    pass
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setColumnCount(2)
+        self.setHorizontalHeaderLabels(["Task Type", "Question/Description"])
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.verticalHeader().setVisible(False)
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.setAlternatingRowColors(True)
+        self.setSortingEnabled(True)
+        # Enable drag-and-drop reordering.
+        self.setDragDropMode(QTableWidget.DragDropMode.InternalMove)
+        # Inform users they can double-click a row to edit.
+        self.setToolTip("Double-click a task to edit it")
+        self.cellDoubleClicked.connect(self.on_cell_double_clicked)
+    
+    def on_cell_double_clicked(self, row, column):
+        self.rowDoubleClicked.emit(row)
+    
+    def update_tasks(self, tasks: list):
+        self.setRowCount(0)
+        for i, task in enumerate(tasks):
+            self.insertRow(i)
+            # Task Type column:
+            task_type = task.get("TASK_TYPE", "unknown")
+            friendly_type = display_task_type(task_type)
+            type_item = QTableWidgetItem(friendly_type)
+            type_item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
+            self.setItem(i, 0, type_item)
+            # Question/Description column: use a QLabel to allow word wrapping.
+            question = task.get("question", "No question provided – default functionality.")
+            q_label = QLabel(question)
+            q_label.setWordWrap(True)
+            q_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.setCellWidget(i, 1, q_label)
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
 
 class TaskManager:
-    def __init__(self, project_root, list_widget: TaskListWidget):
-        """
-        Initialize TaskManager with the project root and a custom list widget.
-        """
+    def __init__(self, project_root, table_widget: TaskListTable):
         self.project_root = project_root
-        self.list_widget = list_widget
-        # Updated tasks file path: tasks.json is now in builder/data
+        self.table_widget = table_widget
+        # Updated tasks file path: tasks.json is now in builder/data.
         self.tasks_file = os.path.join(self.project_root, "builder", "data", "tasks.json")
         self.tasks = []
         self.load_tasks()
     
     def load_tasks(self):
-        """
-        Load tasks from tasks_file, normalize task types, and update the list widget.
-        """
         if os.path.exists(self.tasks_file):
             try:
                 with open(self.tasks_file, "r") as f:
@@ -74,65 +74,51 @@ class TaskManager:
                 self.tasks = []
         else:
             self.tasks = []
-        self.update_list_widget()
+        self.update_table()
     
-    def update_list_widget(self):
-        """
-        Refresh the list widget to display all tasks using the custom TaskListItemWidget.
-        """
-        self.list_widget.clear()
-        for task in self.tasks:
-            # Create a custom widget for this task.
-            item_widget = TaskListItemWidget(task)
-            list_item = QListWidgetItem(self.list_widget)
-            list_item.setSizeHint(item_widget.sizeHint())
-            # Store task data in the list item for future reference.
-            list_item.setData(Qt.ItemDataRole.UserRole, task)
-            self.list_widget.addItem(list_item)
-            self.list_widget.setItemWidget(list_item, item_widget)
+    def update_table(self):
+        self.table_widget.update_tasks(self.tasks)
     
     def add_task(self, task):
-        """
-        Add a new task, normalize its type, and update the list widget.
-        """
         if "type" in task:
             task["TASK_TYPE"] = normalize_task_type(task.pop("type"))
         elif "TASK_TYPE" in task:
             task["TASK_TYPE"] = normalize_task_type(task["TASK_TYPE"])
         self.tasks.append(task)
-        self.update_list_widget()
+        self.update_table()
     
     def delete_task(self, index):
-        """
-        Delete the task at the specified index and update the list widget.
-        """
         if 0 <= index < len(self.tasks):
             del self.tasks[index]
-            self.update_list_widget()
+            self.update_table()
     
     def clear_tasks(self):
-        """
-        Clear all tasks and update the list widget.
-        """
         self.tasks = []
-        self.update_list_widget()
+        self.update_table()
     
     def save_tasks(self):
-        """
-        Save the current task list to tasks_file in JSON format.
-        """
         try:
             with open(self.tasks_file, "w") as f:
                 json.dump(self.tasks, f, indent=4)
             print("Tasks saved successfully.")
         except Exception as e:
-            print("Error saving tasks:", e)
+            QMessageBox.critical(None, "Error", f"Error saving tasks: {e}")
+    
+    def get_task(self, index):
+        if 0 <= index < len(self.tasks):
+            return self.tasks[index]
+        return None
+    
+    def edit_task(self, index, new_data):
+        if 0 <= index < len(self.tasks):
+            self.tasks[index] = new_data
+            self.update_table()
 
 def discover_task_modules():
     """
     Scans the shared/tasks folder for .py files (excluding __init__.py)
-    and returns a dictionary mapping normalized TASK_TYPE to module import path.
-    If running in a frozen state, returns a static manifest.
+    and returns a dictionary mapping normalized TASK_TYPE -> module import path.
+    If running frozen, returns a static manifest.
     """
     import sys
     if getattr(sys, "frozen", False):

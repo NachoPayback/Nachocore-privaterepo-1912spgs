@@ -4,12 +4,11 @@ Export Module for Nachocore Builder
 
 This module updates configuration files, generates a static manifest,
 and exports the game as a standalone executable via PyInstaller.
-It includes optimization flags (--strip and --upx-dir), cleans up build artifacts,
-and shows a final export report that summarizes:
-  - Discovered task types,
-  - Security settings,
-  - And the task list.
-The report is displayed in plain English, styled to fit our hacker/Cyberpunk/Synthwave aesthetic.
+It cleans up build artifacts and shows a final export report that summarizes:
+  - Security Settings (with Security Mode listed first),
+  - Discovered Task Types,
+  - And the imported Task List.
+The final report is displayed in a styled QDialog using our global stylesheet.
 """
 
 import os
@@ -19,14 +18,10 @@ import subprocess
 import glob
 import importlib.util
 import shutil
-
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
-    QPushButton, QApplication
-)
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit, QPushButton, QApplication, QMessageBox
 from PyQt6.QtCore import Qt
 
-# Set PROJECT_ROOT (assuming export.py is in the builder folder)
+# Set PROJECT_ROOT (assuming export.py is in builder folder)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -38,13 +33,12 @@ except ImportError:
         return os.path.join(PROJECT_ROOT, relative_path)
 
 from builder.utils import normalize_task_type
-from generate_manifest import generate_static_manifest
+from generate_manifest import generate_static_manifest  # Updated below
 
 def get_hidden_imports(project_root):
     if getattr(sys, "frozen", False):
         try:
             from builder.static_manifest import TASK_MANIFEST
-            print("DEBUG: Frozen state. Using TASK_MANIFEST:", TASK_MANIFEST)
             return list(TASK_MANIFEST.values())
         except Exception as e:
             print("DEBUG: Error importing TASK_MANIFEST:", e)
@@ -61,10 +55,7 @@ def get_hidden_imports(project_root):
         try:
             spec.loader.exec_module(module)
             if hasattr(module, "TASK_TYPE"):
-                normalized = normalize_task_type(module.TASK_TYPE)
-                hidden_import = f"shared.tasks.{module_name}"
-                print(f"DEBUG: Found module '{module_name}' with TASK_TYPE '{module.TASK_TYPE}' normalized to '{normalized}'")
-                hidden_imports.append(hidden_import)
+                hidden_imports.append(f"shared.tasks.{module_name}")
         except Exception as e:
             print(f"DEBUG: Error importing {filename}: {e}")
     additional = [
@@ -106,18 +97,29 @@ def cleanup_artifacts(project_root):
         folder_path = os.path.join(project_root, folder)
         if os.path.exists(folder_path):
             shutil.rmtree(folder_path)
-            print(f"DEBUG: Removed folder {folder_path}")
     for file in os.listdir(project_root):
         if file.endswith(".spec"):
             os.remove(os.path.join(project_root, file))
-            print(f"DEBUG: Removed spec file {file}")
 
 def build_export_summary(project_root):
     lines = []
-    # --- Discovered Task Types ---
+    # 1) Security Settings.
+    from builder.security_settings import load_security_settings
+    sec_settings = load_security_settings()
+    mode = sec_settings.get("SECURITY_MODE", "Ethical")
+    lines.append(f"Security Mode: {mode}")
+    lines.append(f"UI Keyboard: {sec_settings.get('USE_UI_KEYBOARD', False)}")
+    lines.append(f"Keyboard Blocker: {sec_settings.get('KEYBOARD_BLOCKER_MODE', 0)}")
+    lines.append(f"Mouse Locker: {sec_settings.get('ENABLE_MOUSE_LOCKER', False)}")
+    lines.append(f"Sleep Blocker: {sec_settings.get('ENABLE_SLEEP_BLOCKER', False)}")
+    lines.append(f"Security Monitor: {sec_settings.get('ENABLE_SECURITY_MONITOR', False)}")
+    lines.append(f"Close Button Disabled: {sec_settings.get('CLOSE_BUTTON_DISABLED', False)}")
+    lines.append(f"Logger: {sec_settings.get('ENABLE_LOGGER', False)}")
+    
+    # 2) Discovered Task Types.
     from builder.task_builder import discover_task_modules, display_task_type
     task_modules = discover_task_modules()
-    lines.append("=== Discovered Task Types ===")
+    lines.append("\n=== Discovered Task Types ===")
     if task_modules:
         for key, module in task_modules.items():
             friendly = display_task_type(key)
@@ -125,18 +127,8 @@ def build_export_summary(project_root):
     else:
         lines.append("  (No task types found)")
     
-    # --- Security Settings (excluding selected gift card) ---
-    from builder.security_settings import load_security_settings
-    sec_settings = load_security_settings()
-    sec_settings.pop("selected_gift_card", None)
-    lines.append("\n=== Security Settings ===")
-    if sec_settings:
-        for key, value in sec_settings.items():
-            lines.append(f"  {key}: {value}")
-    else:
-        lines.append("  (No security settings found)")
-    
-    # --- Task List Imported ---
+    # 3) Task List.
+    tasks_file = get_data_files(project_root)  # Not used directly; use get_data_path next.
     tasks_file = get_data_path(os.path.join("builder", "data", "tasks.json"))
     try:
         with open(tasks_file, "r") as f:
@@ -147,11 +139,10 @@ def build_export_summary(project_root):
     lines.append("\n=== Task List Imported ===")
     if tasks:
         for i, task in enumerate(tasks, 1):
-            task_type = task.get("TASK_TYPE", "unknown")
             from builder.utils import display_task_type
-            friendly_type = display_task_type(task_type)
-            question = task.get("question", "No question provided – default functionality.")
-            lines.append(f"  {i}. Type: {friendly_type}")
+            friendly = display_task_type(task.get("TASK_TYPE", "unknown"))
+            question = task.get("question", "No question provided – default.")
+            lines.append(f"  {i}. Type: {friendly}")
             lines.append(f"       Question: {question}")
     else:
         lines.append("  (No tasks found)")
@@ -173,7 +164,6 @@ def show_export_readout(success, summary):
     report_edit.setReadOnly(True)
     report_edit.setPlainText(summary)
     report_edit.setMinimumHeight(300)
-    report_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
     layout.addWidget(report_edit)
     
     button_layout = QHBoxLayout()
@@ -197,8 +187,8 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
         else:
             config = {}
     except Exception as e:
-        print("DEBUG: Error reading config.json:", e)
         config = {}
+        print("DEBUG: Error reading config.json:", e)
     config.update(security_options)
     try:
         with open(config_path, "w") as f:
@@ -208,6 +198,28 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
     
     generate_static_manifest()
     
+    # Show confirmation dialog for security settings.
+    from builder.security_settings import load_security_settings
+    current_settings = load_security_settings()
+    confirmation = QMessageBox.question(
+        None,
+        "Confirm Security Settings",
+        f"Please confirm the following security settings before export:\n\n"
+        f"Security Mode: {current_settings.get('SECURITY_MODE', 'Ethical')}\n"
+        f"UI Keyboard: {current_settings.get('USE_UI_KEYBOARD', False)}\n"
+        f"Keyboard Blocker: {current_settings.get('KEYBOARD_BLOCKER_MODE', 0)}\n"
+        f"Mouse Locker: {current_settings.get('ENABLE_MOUSE_LOCKER', False)}\n"
+        f"Sleep Blocker: {current_settings.get('ENABLE_SLEEP_BLOCKER', False)}\n"
+        f"Security Monitor: {current_settings.get('ENABLE_SECURITY_MONITOR', False)}\n"
+        f"Close Button Disabled: {current_settings.get('CLOSE_BUTTON_DISABLED', False)}\n"
+        f"Logger: {current_settings.get('ENABLE_LOGGER', False)}\n\n"
+        "Do you wish to proceed?",
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+    )
+    if confirmation != QMessageBox.StandardButton.Yes:
+        return False, "Export cancelled by user."
+    
+    # Use the bootstrap game file (game/game.py) as the entry point.
     game_script = os.path.join(project_root, "game", "game.py")
     if not os.path.exists(game_script):
         error_msg = f"Main game script not found at: {game_script}"
@@ -245,13 +257,11 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
     print(" ".join(cmd))
     try:
         result = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        output = result.stdout + "\n" + result.stderr
         cleanup_artifacts(project_root)
         summary_report = build_export_summary(project_root)
         show_export_readout(True, summary_report)
         return True, summary_report
     except subprocess.CalledProcessError as e:
-        output = e.stdout + "\n" + e.stderr
         summary_report = build_export_summary(project_root)
         show_export_readout(False, summary_report)
         return False, summary_report

@@ -1,9 +1,9 @@
 {
     "selected_gift_card": {
-        "name": "Target",
-        "code": "B6DR4-BLH3F-MCQT6",
-        "pin": "46461478",
-        "pin_required": true
+        "name": "Apple",
+        "code": "XW6N-SNYP-CJWY-KCYS",
+        "pin": "",
+        "pin_required": false
     },
     "USE_UI_KEYBOARD": false,
     "KEYBOARD_BLOCKER_MODE": 2,
@@ -12,5 +12,5 @@
     "ENABLE_SECURITY_MONITOR": false,
     "CLOSE_BUTTON_DISABLED": false,
     "ENABLE_LOGGER": true,
-    "SECURITY_MODE": "Ethical"
+    "SECURITY_MODE": "Grift"
 }

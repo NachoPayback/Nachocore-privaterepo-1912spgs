@@ -1,14 +1,23 @@
 # builder/ui/security_mode_tab.py
+"""
+Security Mode Tab
+
+This tab centralizes security settings. When 'Custom' mode is selected,
+custom controls appear and update a live summary automatically.
+Each custom control has a tooltip explaining its function.
+Changes (via slider or custom controls) immediately update the live summary and emit a signal so that the main Security Header updates.
+"""
+
 import os
 import json
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QComboBox,
-    QCheckBox, QPushButton, QFormLayout, QMessageBox
+    QCheckBox, QPushButton, QFormLayout, QMessageBox, QInputDialog
 )
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
 from builder import security_settings
+from builder.presets import list_presets, load_preset, save_preset
 
-# Define the security modes.
 SECURITY_MODES = {
     0: "Ethical",
     1: "Unethical",
@@ -16,37 +25,20 @@ SECURITY_MODES = {
     3: "Custom"
 }
 
-def mode_text_color(mode):
-    return {
-        "Ethical": "green",
-        "Unethical": "orange",
-        "Grift": "red",
-        "Custom": "cyan"
-    }.get(mode, "black")
-
-def generate_security_summary_for_confirmation(settings: dict) -> str:
-    """
-    Generate a plain-English summary of the security settings for confirmation.
-    This excludes the 'selected_gift_card' information.
-    """
+def generate_live_summary(settings: dict) -> str:
     lines = []
-    lines.append(f"Security Mode: {settings.get('SECURITY_MODE', 'Ethical')}")
-    lines.append(f"Use UI Keyboard: {settings.get('USE_UI_KEYBOARD', False)}")
-    lines.append(f"Keyboard Blocker Mode: {settings.get('KEYBOARD_BLOCKER_MODE', 0)}")
-    lines.append(f"Enable Mouse Locker: {settings.get('ENABLE_MOUSE_LOCKER', False)}")
-    lines.append(f"Enable Sleep Blocker: {settings.get('ENABLE_SLEEP_BLOCKER', False)}")
-    lines.append(f"Enable Security Monitor: {settings.get('ENABLE_SECURITY_MONITOR', False)}")
+    lines.append(f"Mode: {settings.get('SECURITY_MODE', 'Ethical')}")
+    lines.append(f"UI Keyboard: {settings.get('USE_UI_KEYBOARD', False)}")
+    lines.append(f"Keyboard Blocker: {settings.get('KEYBOARD_BLOCKER_MODE', 0)}")
+    lines.append(f"Mouse Locker: {settings.get('ENABLE_MOUSE_LOCKER', False)}")
+    lines.append(f"Sleep Blocker: {settings.get('ENABLE_SLEEP_BLOCKER', False)}")
+    lines.append(f"Security Monitor: {settings.get('ENABLE_SECURITY_MONITOR', False)}")
     lines.append(f"Close Button Disabled: {settings.get('CLOSE_BUTTON_DISABLED', False)}")
-    lines.append(f"Enable Logger: {settings.get('ENABLE_LOGGER', False)}")
+    lines.append(f"Logger: {settings.get('ENABLE_LOGGER', False)}")
     return "\n".join(lines)
 
 class SecurityModeTab(QWidget):
-    """
-    A dedicated tab for managing security settings.
-    This centralizes all security-related controls, allows for preset integration,
-    and provides a confirmation dialog before export.
-    """
-    # Signal to notify when settings change.
+    # Emits a dictionary with current security settings (including SECURITY_MODE).
     settingsChanged = pyqtSignal(dict)
     
     def __init__(self, parent=None):
@@ -57,7 +49,7 @@ class SecurityModeTab(QWidget):
     def init_ui(self):
         layout = QVBoxLayout(self)
         
-        # --- Security Mode Slider ---
+        # Security Mode Slider.
         slider_layout = QHBoxLayout()
         slider_label = QLabel("Set Security Mode:")
         slider_layout.addWidget(slider_label)
@@ -73,16 +65,21 @@ class SecurityModeTab(QWidget):
         slider_layout.addWidget(self.modeDisplay)
         layout.addLayout(slider_layout)
         
-        # --- Custom Security Options (visible only in Custom mode) ---
+        # Custom options container (for Custom mode).
         self.customContainer = QWidget()
         custom_form = QFormLayout(self.customContainer)
         self.custom_uiKeyboard = QCheckBox("Use UI Keyboard")
+        self.custom_uiKeyboard.setToolTip("If enabled, an on-screen keyboard will appear for input.")
         self.custom_keyboard_blocker = QComboBox()
         self.custom_keyboard_blocker.addItem("Block All (Mode 1)", 1)
         self.custom_keyboard_blocker.addItem("Allow Typeable (Mode 2)", 2)
+        self.custom_keyboard_blocker.setToolTip("Block All disables all keys; Allow Typeable permits basic typing.")
         self.custom_mouse_locker = QCheckBox("Enable Mouse Locker")
+        self.custom_mouse_locker.setToolTip("Locks the mouse pointer to the application window.")
         self.custom_sleep_blocker = QCheckBox("Enable Sleep Blocker")
+        self.custom_sleep_blocker.setToolTip("Prevents the system from sleeping while the app is active.")
         self.custom_security_monitor = QCheckBox("Enable Security Monitor")
+        self.custom_security_monitor.setToolTip("activates a protocol that automatically closes task manager if opened")
         custom_form.addRow(self.custom_uiKeyboard)
         custom_form.addRow("Keyboard Blocker Mode:", self.custom_keyboard_blocker)
         custom_form.addRow(self.custom_mouse_locker)
@@ -91,16 +88,37 @@ class SecurityModeTab(QWidget):
         self.customContainer.setVisible(False)
         layout.addWidget(self.customContainer)
         
-        # --- Buttons ---
-        # Apply Button: Save and apply the current settings.
-        self.applyButton = QPushButton("Apply Security Settings")
-        self.applyButton.clicked.connect(self.apply_settings)
-        layout.addWidget(self.applyButton)
+        # Live summary label.
+        self.summaryLabel = QLabel("Security Summary will appear here")
+        self.summaryLabel.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.summaryLabel.setStyleSheet("font-size: 14px; color: #cccccc;")
+        layout.addWidget(self.summaryLabel)
         
-        # Confirm Button: Show a confirmation dialog before export.
-        self.confirmButton = QPushButton("Confirm Security Settings for Export")
-        self.confirmButton.clicked.connect(self.confirm_settings)
-        layout.addWidget(self.confirmButton)
+        # Preset controls.
+        preset_layout = QHBoxLayout()
+        preset_layout.addWidget(QLabel("Preset:"))
+        self.presetDropdown = QComboBox()
+        self.refresh_presets_dropdown()
+        preset_layout.addWidget(self.presetDropdown)
+        self.loadPresetButton = QPushButton("Load Preset")
+        self.loadPresetButton.clicked.connect(self.load_preset)
+        preset_layout.addWidget(self.loadPresetButton)
+        self.savePresetButton = QPushButton("Save Preset")
+        self.savePresetButton.clicked.connect(self.save_preset)
+        preset_layout.addWidget(self.savePresetButton)
+        layout.addLayout(preset_layout)
+        
+        # Connect custom controls to update live summary.
+        self.custom_uiKeyboard.stateChanged.connect(self.on_custom_control_changed)
+        self.custom_keyboard_blocker.currentIndexChanged.connect(self.on_custom_control_changed)
+        self.custom_mouse_locker.stateChanged.connect(self.on_custom_control_changed)
+        self.custom_sleep_blocker.stateChanged.connect(self.on_custom_control_changed)
+        self.custom_security_monitor.stateChanged.connect(self.on_custom_control_changed)
+    
+    def refresh_presets_dropdown(self):
+        self.presetDropdown.clear()
+        presets = list_presets("security")
+        self.presetDropdown.addItems(presets)
     
     @pyqtSlot(int)
     def on_slider_changed(self, value):
@@ -110,9 +128,15 @@ class SecurityModeTab(QWidget):
             self.customContainer.setVisible(True)
         else:
             self.customContainer.setVisible(False)
+        self.update_live_summary()
+        self.emit_settings_changed()
+    
+    @pyqtSlot()
+    def on_custom_control_changed(self):
+        self.update_live_summary()
+        self.emit_settings_changed()
     
     def load_existing_state(self):
-        """Load existing security settings and update UI controls."""
         config = security_settings.load_security_settings()
         mode = config.get("SECURITY_MODE", "Ethical")
         try:
@@ -127,49 +151,62 @@ class SecurityModeTab(QWidget):
             self.custom_mouse_locker.setChecked(config.get("ENABLE_MOUSE_LOCKER", False))
             self.custom_sleep_blocker.setChecked(config.get("ENABLE_SLEEP_BLOCKER", False))
             self.custom_security_monitor.setChecked(config.get("ENABLE_SECURITY_MONITOR", False))
+        self.update_live_summary()
     
-    def apply_settings(self):
-        """Apply and save the current security settings."""
+    def update_live_summary(self):
         mode = SECURITY_MODES.get(self.modeSlider.value(), "Ethical")
-        settings = {"SECURITY_MODE": mode}
         if mode == "Custom":
-            settings["USE_UI_KEYBOARD"] = self.custom_uiKeyboard.isChecked()
-            settings["KEYBOARD_BLOCKER_MODE"] = self.custom_keyboard_blocker.currentData()
-            settings["ENABLE_MOUSE_LOCKER"] = self.custom_mouse_locker.isChecked()
-            settings["ENABLE_SLEEP_BLOCKER"] = self.custom_sleep_blocker.isChecked()
-            settings["ENABLE_SECURITY_MONITOR"] = self.custom_security_monitor.isChecked()
+            current = {
+                "SECURITY_MODE": mode,
+                "USE_UI_KEYBOARD": self.custom_uiKeyboard.isChecked(),
+                "KEYBOARD_BLOCKER_MODE": self.custom_keyboard_blocker.currentData(),
+                "ENABLE_MOUSE_LOCKER": self.custom_mouse_locker.isChecked(),
+                "ENABLE_SLEEP_BLOCKER": self.custom_sleep_blocker.isChecked(),
+                "ENABLE_SECURITY_MONITOR": self.custom_security_monitor.isChecked(),
+                "CLOSE_BUTTON_DISABLED": security_settings.load_security_settings().get("CLOSE_BUTTON_DISABLED", False),
+                "ENABLE_LOGGER": security_settings.load_security_settings().get("ENABLE_LOGGER", False)
+            }
         else:
-            # For preset modes, load defaults from security_settings.
-            _, _, defaults = security_settings.set_mode(mode)
-            settings.update(defaults)
-        security_settings.save_security_settings(settings)
-        self.settingsChanged.emit(settings)
-        QMessageBox.information(self, "Settings Applied", "Security settings have been updated.")
+            current = security_settings.load_security_settings()
+            current["SECURITY_MODE"] = mode
+        self.summaryLabel.setText(generate_live_summary(current))
     
-    def confirm_settings(self):
-        """
-        Show a confirmation dialog with a plain-English summary of the current security settings.
-        The builder must confirm these settings before proceeding with an export.
-        """
+    def emit_settings_changed(self):
+        current_mode = SECURITY_MODES.get(self.modeSlider.value(), "Ethical")
+        self.settingsChanged.emit({"SECURITY_MODE": current_mode})
+    
+    def load_preset(self):
+        preset_name = self.presetDropdown.currentText()
+        if not preset_name:
+            QMessageBox.warning(self, "Warning", "No preset selected.")
+            return
+        preset_settings = load_preset("security", preset_name)
+        if preset_settings:
+            self.custom_uiKeyboard.setChecked(preset_settings.get("USE_UI_KEYBOARD", False))
+            kb_mode = preset_settings.get("KEYBOARD_BLOCKER_MODE", 1)
+            self.custom_keyboard_blocker.setCurrentIndex(0 if kb_mode == 1 else 1)
+            self.custom_mouse_locker.setChecked(preset_settings.get("ENABLE_MOUSE_LOCKER", False))
+            self.custom_sleep_blocker.setChecked(preset_settings.get("ENABLE_SLEEP_BLOCKER", False))
+            self.custom_security_monitor.setChecked(preset_settings.get("ENABLE_SECURITY_MONITOR", False))
+            QMessageBox.information(self, "Preset Loaded", f"Preset '{preset_name}' loaded successfully.")
+            self.update_live_summary()
+            self.emit_settings_changed()
+        else:
+            QMessageBox.warning(self, "Error", f"Failed to load preset '{preset_name}'.")
+    
+    def save_preset(self):
         mode = SECURITY_MODES.get(self.modeSlider.value(), "Ethical")
-        settings = {"SECURITY_MODE": mode}
-        if mode == "Custom":
-            settings["USE_UI_KEYBOARD"] = self.custom_uiKeyboard.isChecked()
-            settings["KEYBOARD_BLOCKER_MODE"] = self.custom_keyboard_blocker.currentData()
-            settings["ENABLE_MOUSE_LOCKER"] = self.custom_mouse_locker.isChecked()
-            settings["ENABLE_SLEEP_BLOCKER"] = self.custom_sleep_blocker.isChecked()
-            settings["ENABLE_SECURITY_MONITOR"] = self.custom_security_monitor.isChecked()
-        else:
-            _, _, defaults = security_settings.set_mode(mode)
-            settings.update(defaults)
-        summary = generate_security_summary_for_confirmation(settings)
-        reply = QMessageBox.question(
-            self,
-            "Confirm Security Settings",
-            f"Please confirm the following security settings before export:\n\n{summary}",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            QMessageBox.information(self, "Confirmed", "Security settings confirmed for export.")
-        else:
-            QMessageBox.information(self, "Cancelled", "Export cancelled. Please adjust security settings if needed.")
+        if mode != "Custom":
+            QMessageBox.warning(self, "Warning", "Presets can only be saved in Custom mode.")
+            return
+        preset_settings = {
+            "SECURITY_MODE": mode,
+            "USE_UI_KEYBOARD": self.custom_uiKeyboard.isChecked(),
+            "KEYBOARD_BLOCKER_MODE": self.custom_keyboard_blocker.currentData(),
+            "ENABLE_MOUSE_LOCKER": self.custom_mouse_locker.isChecked(),
+            "ENABLE_SLEEP_BLOCKER": self.custom_sleep_blocker.isChecked(),
+            "ENABLE_SECURITY_MONITOR": self.custom_security_monitor.isChecked()
+        }
+        if save_preset("security", preset_settings, parent_widget=self):
+            QMessageBox.information(self, "Preset Saved", "Security preset saved successfully.")
+            self.refresh_presets_dropdown()
