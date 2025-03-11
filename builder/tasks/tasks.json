@@ -1,11 +1,9 @@
 [
     {
-        "question": "What color is the brand?",
+        "question": "Would you like to play a game?",
         "options": [
-            "Blue",
-            "Green",
-            "Red",
-            "Yellow"
+            "Yes",
+            "No"
         ],
         "correct_indices": [
             0
@@ -13,30 +11,17 @@
         "TASK_TYPE": "multiple_choice"
     },
     {
-        "question": "What color is the brand?",
-        "options": [
-            "No",
-            "Yeah",
-            "Also yeah"
-        ],
-        "correct_indices": [
-            1,
-            2
-        ],
-        "TASK_TYPE": "multiple_choice"
-    },
-    {
-        "question": "Say hi!",
+        "question": "Who hacked you?",
         "acceptable_answers": [
-            "hi",
-            "hello",
-            "sup"
+            "Scammer Payback",
+            "Nacho",
+            "Nacho Payback"
         ],
         "has_correct": true,
         "TASK_TYPE": "short_answer"
     },
     {
-        "question": "Say anything",
+        "question": "Where's the money?",
         "acceptable_answers": [],
         "has_correct": false,
         "TASK_TYPE": "short_answer"
@@ -52,23 +37,17 @@
         "TASK_TYPE": "location_collection"
     },
     {
-        "question": "What is your real name 2?",
-        "answer": "Gottem",
-        "TASK_TYPE": "name_collection"
-    },
-    {
-        "question": "Where are you located 2?",
-        "answer": "yoink",
-        "TASK_TYPE": "location_collection"
-    },
-    {
-        "question": "Did it all work?",
+        "question": "Are you having fun?",
         "options": [
+            "Yes",
             "Yes!",
-            "KYS"
+            "No",
+            "ABSOLUTELY"
         ],
         "correct_indices": [
-            0
+            0,
+            1,
+            3
         ],
         "TASK_TYPE": "multiple_choice"
     }

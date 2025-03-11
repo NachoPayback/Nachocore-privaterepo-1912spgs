@@ -28,6 +28,8 @@ from builder.task_builder import TaskManager, TaskListWidget
 # Import centralized security_settings module.
 from builder import security_settings
 
+from builder.cleanup import clean_pycache
+
 # ---------------- Security Mode Mappings ----------------
 SECURITY_MODES = {
     0: "Ethical",
@@ -225,6 +227,10 @@ class BuilderUI(QMainWindow):
             self.export_security_slider.blockSignals(False)
             self.update_export_mode_label()
             self.load_export_state()
+    def closeEvent(self, event):
+        print("Builder is closing. Cleaning up __pycache__...")
+        clean_pycache(PROJECT_ROOT)
+        event.accept()
     # -------------- Task Builder Tab --------------
     def create_task_tab(self):
         task_tab = QWidget()
@@ -396,10 +402,14 @@ class BuilderUI(QMainWindow):
         from builder.export import export_exe
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        
+        # Custom EXE name field
         layout.addWidget(QLabel("Enter Custom EXE Name:"))
         self.custom_exe_name = QLineEdit()
         self.custom_exe_name.setPlaceholderText("e.g., ScammerPaybackGame")
         layout.addWidget(self.custom_exe_name)
+        
+        # Security mode selection controls
         layout.addWidget(QLabel("Select Security Mode:"))
         self.export_security_slider = QSlider(Qt.Orientation.Horizontal)
         self.export_security_slider.setRange(0, 3)
@@ -409,6 +419,7 @@ class BuilderUI(QMainWindow):
         self.export_mode_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.export_mode_label)
         self.update_export_mode_label()
+        
         self.export_customContainer = QWidget()
         form = QFormLayout(self.export_customContainer)
         self.export_uiKeyboard = QCheckBox("Use UI Keyboard")
@@ -425,8 +436,16 @@ class BuilderUI(QMainWindow):
         form.addRow(self.export_security_monitor)
         self.export_customContainer.setVisible(False)
         layout.addWidget(self.export_customContainer)
+        
         self.load_export_state()
         self.export_security_slider.valueChanged.connect(self.on_export_slider_changed)
+        
+        # Status label to update export status in the builder UI.
+        self.export_status_label = QLabel("")
+        self.export_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.export_status_label)
+        
+        # Export button; its handler calls export_exe() and does not open a duplicate dialog.
         export_btn = QPushButton("Export to EXE")
         def on_export():
             name = self.custom_exe_name.text().strip()
@@ -446,28 +465,16 @@ class BuilderUI(QMainWindow):
             else:
                 from builder import security_settings
                 _, _, opts = security_settings.set_mode(mode)
+            # Call export_exe(); it will display its own detailed report dialog.
             success, output = export_exe(name, PROJECT_ROOT, opts, disable_lockdown=False)
-            d = QDialog(self)
-            d.setWindowTitle("Export Result")
-            dlayout = QVBoxLayout(d)
-            lbl = QLabel("Export Successful!" if success else "Export Failed!")
-            dlayout.addWidget(lbl)
-            txt = QPlainTextEdit()
-            txt.setPlainText(output)
-            txt.setReadOnly(True)
-            dlayout.addWidget(txt)
-            row = QHBoxLayout()
-            cpy = QPushButton("Copy Output")
-            cpy.clicked.connect(lambda: QApplication.clipboard().setText(output))
-            close = QPushButton("Close")
-            close.clicked.connect(d.close)
-            row.addWidget(cpy)
-            row.addWidget(close)
-            dlayout.addLayout(row)
-            d.resize(600, 400)
-            d.exec()
+            # Update status label in the builder UI
+            if success:
+                self.export_status_label.setText("Export Successful!")
+            else:
+                self.export_status_label.setText("Export Failed: " + output)
         export_btn.clicked.connect(on_export)
         layout.addWidget(export_btn)
+        
         return tab
 
     def on_export_slider_changed(self, val):

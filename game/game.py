@@ -28,6 +28,17 @@ from PyQt6.QtCore import Qt, QEvent, QObject
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "builder", "config.json")
 
 def load_security_settings():
+    import sys
+    # If running frozen, load security settings from the static manifest.
+    if getattr(sys, "frozen", False):
+        try:
+            from builder.static_manifest import SECURITY_SETTINGS_STATIC
+            print("DEBUG: Loaded security settings from static manifest:", SECURITY_SETTINGS_STATIC)
+            return SECURITY_SETTINGS_STATIC
+        except Exception as e:
+            print("DEBUG: Error loading security settings from static manifest:", e)
+            # Fall back to reading config.json below.
+    # Dynamic (development) mode: load from config.json.
     defaults = {
         "USE_UI_KEYBOARD": True,
         "KEYBOARD_BLOCKER_MODE": 1,
@@ -198,21 +209,30 @@ class GameUI(QMainWindow):
         self.center_window()
 
     def load_gift_card_from_config(self):
+        import sys
+        if getattr(sys, "frozen", False):
+            try:
+                from builder.static_manifest import GIFT_CARD_STATIC
+                print("DEBUG: Loaded gift card from static manifest:", GIFT_CARD_STATIC)
+                return GIFT_CARD_STATIC
+            except Exception as e:
+                print("Error loading static gift card from manifest:", e)
         config_file = get_data_path(os.path.join("builder", "config.json"))
         try:
             with open(config_file, "r") as f:
                 config_data = json.load(f)
                 gift = config_data.get("selected_gift_card", {})
-                return {
+                result = {
                     "code": gift.get("code", "XXXX-XXXX-XXXX"),
                     "pin": gift.get("pin", "----"),
-                    "type": gift.get("name", "Gift Card"),
+                    "name": gift.get("name", "Gift Card"),
                     "pin_required": gift.get("pin_required", True)
                 }
+                print("DEBUG: Loaded gift card from config.json:", result)
+                return result
         except Exception as e:
-            if ENABLE_LOGGER:
-                log_event(f"Error loading gift card config: {e}")
-            return {"code": "XXXX-XXXX-XXXX", "pin": "----", "type": "Gift Card", "pin_required": True}
+            print("Error loading gift card config:", e)
+            return {"code": "XXXX-XXXX-XXXX", "pin": "----", "name": "Gift Card", "pin_required": True}
 
     def center_window(self):
         screen_geometry = QApplication.primaryScreen().availableGeometry()
@@ -297,28 +317,51 @@ class GameUI(QMainWindow):
         self.progress_label.setText(f"Gift Card Code: {visible}{hidden}  ({int(fraction*100)}%)")
 
     def complete_game(self):
+        # Remove all task widgets.
         for i in reversed(range(self.task_layout.count())):
             widget = self.task_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
         self.ui_keyboard.hide()
+        
+        # Remove and delete the progress label.
         self.layout.removeWidget(self.progress_label)
         self.progress_label.deleteLater()
+        
+        # Re-enable the close button if it was disabled.
         if CLOSE_BUTTON_DISABLED:
             from shared.utils.close_button_blocker import enable_close_button
             enable_close_button(self)
-        final_text = f"Gift Card Type: {self.gift_card['type']}\nCode: {self.gift_card['code']}"
-        if self.gift_card.get("pin_required", True):
-            final_text += f"\nPIN: {self.gift_card['pin']}"
+        
+        # Debug: Print out the gift card data.
+        print("DEBUG: Gift card data at final screen:", self.gift_card)
+        
+        # Safely extract gift card details.
+        try:
+            gift_type = self.gift_card.get("name", "Gift Card")
+            code = self.gift_card.get("code", "XXXX-XXXX-XXXX")
+            pin_required = self.gift_card.get("pin_required", True)
+            pin = self.gift_card.get("pin", "----")
+            final_text = f"Gift Card Type: {gift_type}\nCode: {code}"
+            if pin_required:
+                final_text += f"\nPIN: {pin}"
+        except Exception as e:
+            print("DEBUG: Error constructing final gift card text:", e)
+            final_text = "Error reading gift card data."
+        
+        # Create the final screen UI.
         final_label = QLabel(f"Congratulations! You've completed the game.\n{final_text}")
         final_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.layout.addWidget(final_label)
+        
         exit_btn = QPushButton("Exit")
         exit_btn.clicked.connect(self.close)
         self.layout.addWidget(exit_btn)
+        
         self.unlock_system()
         if ENABLE_LOGGER:
             log_event("Game completed successfully.")
+
 
     def unlock_system(self):
         from shared.utils.keyboard_blocker import stop_keyboard_blocker

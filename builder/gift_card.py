@@ -89,13 +89,13 @@ def generate_random_pin(card_data):
     return ""
 
 def update_final_gift_card(selected_name, custom_data=None):
-    # If frozen, use the static manifest for gift cards.
     if getattr(sys, "frozen", False):
         try:
             from builder.static_manifest import GIFT_CARD_STATIC
+            print("DEBUG: Using static gift card data:", GIFT_CARD_STATIC)
             return GIFT_CARD_STATIC
         except Exception as e:
-            print("Error loading static gift card from manifest: {}".format(e))
+            print("Error loading static gift card from manifest:", e)
     config = load_config()
     if selected_name == "Custom Gift Card":
         if custom_data is None:

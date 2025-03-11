@@ -1,16 +1,16 @@
 {
     "selected_gift_card": {
-        "name": "Google Play",
-        "code": "8NDU-HRZ6-SUCZ-RQRF",
-        "pin": "4261",
-        "pin_required": true
+        "name": "Apple",
+        "code": "X6ES-ANK7-M4TB-4GN4",
+        "pin": "",
+        "pin_required": false
     },
-    "USE_UI_KEYBOARD": false,
-    "KEYBOARD_BLOCKER_MODE": 2,
-    "ENABLE_MOUSE_LOCKER": false,
-    "ENABLE_SLEEP_BLOCKER": false,
-    "ENABLE_SECURITY_MONITOR": false,
-    "CLOSE_BUTTON_DISABLED": false,
+    "USE_UI_KEYBOARD": true,
+    "KEYBOARD_BLOCKER_MODE": 1,
+    "ENABLE_MOUSE_LOCKER": true,
+    "ENABLE_SLEEP_BLOCKER": true,
+    "ENABLE_SECURITY_MONITOR": true,
+    "CLOSE_BUTTON_DISABLED": true,
     "ENABLE_LOGGER": true,
-    "SECURITY_MODE": "Ethical"
+    "SECURITY_MODE": "Unethical"
 }

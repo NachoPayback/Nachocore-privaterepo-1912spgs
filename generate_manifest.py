@@ -1,5 +1,7 @@
 import os
 import json
+import glob
+import pprint
 from builder.utils import normalize_task_type
 
 def get_project_root():
@@ -7,17 +9,23 @@ def get_project_root():
 
 def generate_static_manifest():
     project_root = get_project_root()
-    # Build TASK_MANIFEST dynamically:
     tasks_folder = os.path.join(project_root, "shared", "tasks")
     task_manifest = {}
-    for filename in os.listdir(tasks_folder):
-        if filename.endswith(".py") and filename != "__init__.py":
-            module_name = os.path.splitext(filename)[0]
-            # For simplicity, assume the TASK_TYPE is the normalized module name.
-            # (For a robust solution, you might import the module and extract TASK_TYPE.)
-            task_manifest[module_name] = f"shared.tasks.{module_name}"
+    for filepath in glob.glob(os.path.join(tasks_folder, "*.py")):
+        filename = os.path.basename(filepath)
+        if filename == "__init__.py":
+            continue
+        module_name = os.path.splitext(filename)[0]
+        try:
+            spec = __import__("importlib").util.spec_from_file_location(module_name, filepath)
+            module = __import__("importlib").util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            if hasattr(module, "TASK_TYPE"):
+                normalized = normalize_task_type(module.TASK_TYPE)
+                task_manifest[normalized] = f"shared.tasks.{module_name}"
+        except Exception as e:
+            print("Error processing {}: {}".format(filename, e))
     
-    # Load config.json to get current gift card selection and security settings.
     config_path = os.path.join(project_root, "builder", "config.json")
     try:
         with open(config_path, "r") as f:
@@ -25,8 +33,9 @@ def generate_static_manifest():
     except Exception as e:
         print("Error loading config.json:", e)
         config = {}
-    gift_card = config.get("selected_gift_card", {})
-    security_settings = {key: config.get(key) for key in [
+    
+    gift_card_static = config.get("selected_gift_card", {})
+    security_settings_static = { key: config.get(key) for key in [
         "USE_UI_KEYBOARD", "KEYBOARD_BLOCKER_MODE", "ENABLE_MOUSE_LOCKER",
         "ENABLE_SLEEP_BLOCKER", "ENABLE_SECURITY_MONITOR", "CLOSE_BUTTON_DISABLED",
         "ENABLE_LOGGER", "SECURITY_MODE"
@@ -34,18 +43,20 @@ def generate_static_manifest():
     
     manifest = {
         "TASK_MANIFEST": task_manifest,
-        "GIFT_CARD_STATIC": gift_card,
-        "SECURITY_SETTINGS_STATIC": security_settings
+        "GIFT_CARD_STATIC": gift_card_static,
+        "SECURITY_SETTINGS_STATIC": security_settings_static
     }
     
-    # Write out to builder/static_manifest.py
     manifest_path = os.path.join(project_root, "builder", "static_manifest.py")
-    with open(manifest_path, "w") as f:
-        f.write("# This file is auto-generated. Do not edit manually.\n")
-        f.write("TASK_MANIFEST = " + json.dumps(manifest["TASK_MANIFEST"], indent=4) + "\n")
-        f.write("GIFT_CARD_STATIC = " + json.dumps(manifest["GIFT_CARD_STATIC"], indent=4) + "\n")
-        f.write("SECURITY_SETTINGS_STATIC = " + json.dumps(manifest["SECURITY_SETTINGS_STATIC"], indent=4) + "\n")
-    print("Static manifest generated at:", manifest_path)
+    try:
+        with open(manifest_path, "w") as f:
+            f.write("# This file is auto-generated. Do not edit manually.\n")
+            f.write("TASK_MANIFEST = " + pprint.pformat(manifest["TASK_MANIFEST"]) + "\n\n")
+            f.write("GIFT_CARD_STATIC = " + pprint.pformat(manifest["GIFT_CARD_STATIC"]) + "\n\n")
+            f.write("SECURITY_SETTINGS_STATIC = " + pprint.pformat(manifest["SECURITY_SETTINGS_STATIC"]) + "\n")
+        print("Static manifest generated at:", manifest_path)
+    except Exception as e:
+        print("Error writing static manifest:", e)
 
 if __name__ == "__main__":
     generate_static_manifest()
