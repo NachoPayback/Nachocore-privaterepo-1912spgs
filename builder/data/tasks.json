@@ -9,5 +9,10 @@
             0
         ],
         "TASK_TYPE": "multiple_choice"
+    },
+    {
+        "question": "Where are you located?",
+        "answer": "",
+        "TASK_TYPE": "location_collection"
     }
 ]

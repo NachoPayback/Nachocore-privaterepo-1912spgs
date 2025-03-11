@@ -20,12 +20,15 @@ class SecurityHeader(QWidget):
         self.modeLabel = QLabel()
         self.modeLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.modeLabel)
-        # Immediately update the header with the current security mode at boot-up.
         self.update_security_mode()
     
     def update_security_mode(self):
         settings = load_security_settings()
-        # If no mode is found, default to "Ethical"
+        # Default to Ethical if no mode is found.
         mode = settings.get("SECURITY_MODE", "Ethical")
+        self.setMode(mode)
+    
+    def setMode(self, mode: str):
+        """Update the header display with the given mode."""
         self.modeLabel.setText(f"Security Mode: {mode}")
         self.modeLabel.setStyleSheet(f"color: {mode_text_color(mode)}; font-weight: bold;")

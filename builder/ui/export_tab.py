@@ -1,90 +1,88 @@
 # builder/ui/export_tab.py
 import os
+import sys
+import json
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QPlainTextEdit
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
+    QPushButton, QPlainTextEdit
 )
 from PyQt6.QtCore import Qt
-from builder import security_settings
-
-# Security mode mappings.
-SECURITY_MODES = {
-    0: "Ethical",
-    1: "Unethical",
-    2: "Grift",
-    3: "Custom"
-}
-
-def mode_text_color(mode):
-    return {
-        "Ethical": "green",
-        "Unethical": "orange",
-        "Grift": "red",
-        "Custom": "cyan"
-    }.get(mode, "black")
-
-def generate_security_summary_for_export():
-    """
-    Generate a plain-English summary of the current security settings
-    for display in the Export tab. This summary excludes any gift card data.
-    """
-    settings = security_settings.load_security_settings()
-    # Remove gift card info if present.
-    settings.pop("selected_gift_card", None)
-    lines = []
-    for key, value in settings.items():
-        lines.append(f"{key}: {value}")
-    return "\n".join(lines)
+from shared.theme.theme import load_stylesheet
+from builder.security_settings import load_security_settings
+from builder.export import export_exe
 
 class ExportTab(QWidget):
     def __init__(self, project_root, parent=None):
         super().__init__(parent)
         self.project_root = project_root
         self.init_ui()
+        self.update_security_summary()
     
     def init_ui(self):
         layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
         
-        # Executable name input.
-        layout.addWidget(QLabel("Enter Custom EXE Name:"))
-        self.custom_exe_name = QLineEdit()
-        self.custom_exe_name.setPlaceholderText("e.g., ScammerPaybackGame")
-        layout.addWidget(self.custom_exe_name)
+        # Title Label
+        title = QLabel("Export Options")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #00ffcc;")
+        layout.addWidget(title)
         
-        # Reminder label.
-        reminder_label = QLabel("Please verify your security settings in the 'Security Mode' tab before exporting.")
-        reminder_label.setWordWrap(True)
-        reminder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(reminder_label)
+        # Custom EXE Name Input
+        name_layout = QHBoxLayout()
+        name_label = QLabel("Custom EXE Name:")
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText("e.g., ScammerPaybackGame")
+        name_layout.addWidget(name_label)
+        name_layout.addWidget(self.name_input)
+        layout.addLayout(name_layout)
         
-        # Active Security Settings Summary.
-        layout.addWidget(QLabel("Current Security Settings:"))
+        # Current Security Settings Summary
         self.security_summary = QPlainTextEdit()
         self.security_summary.setReadOnly(True)
+        self.security_summary.setStyleSheet("font-size: 14px;")
+        layout.addWidget(QLabel("Current Security Settings:"))
         layout.addWidget(self.security_summary)
-        self.update_security_summary()
         
-        # Export button.
-        export_btn = QPushButton("Export to EXE")
-        export_btn.clicked.connect(self.on_export)
-        layout.addWidget(export_btn)
+        # Export Button
+        self.export_button = QPushButton("Export to EXE")
+        self.export_button.clicked.connect(self.on_export)
+        layout.addWidget(self.export_button)
+        
+        stylesheet = load_stylesheet("shared/theme/styles.qss")
+        if stylesheet:
+            self.setStyleSheet(stylesheet)
+        
+        self.setLayout(layout)
     
     def update_security_summary(self):
-        """
-        Read the current security settings from configuration and update
-        the read-only summary text.
-        """
-        summary = generate_security_summary_for_export()
-        self.security_summary.setPlainText(summary)
+        settings = load_security_settings()
+        summary_lines = []
+        summary_lines.append(f"Security Mode: {settings.get('SECURITY_MODE', 'Ethical')}")
+        summary_lines.append(f"UI Keyboard: {settings.get('USE_UI_KEYBOARD', False)}")
+        summary_lines.append(f"Keyboard Blocker: {settings.get('KEYBOARD_BLOCKER_MODE', 0)}")
+        summary_lines.append(f"Mouse Locker: {settings.get('ENABLE_MOUSE_LOCKER', False)}")
+        summary_lines.append(f"Sleep Blocker: {settings.get('ENABLE_SLEEP_BLOCKER', False)}")
+        summary_lines.append(f"Security Monitor: {settings.get('ENABLE_SECURITY_MONITOR', False)}")
+        summary_lines.append(f"Close Button Disabled: {settings.get('CLOSE_BUTTON_DISABLED', False)}")
+        summary_lines.append(f"Logger: {settings.get('ENABLE_LOGGER', False)}")
+        self.security_summary.setPlainText("\n".join(summary_lines))
     
     def on_export(self):
-        name = self.custom_exe_name.text().strip()
-        if not name:
+        exe_name = self.name_input.text().strip()
+        if not exe_name:
+            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(self, "Warning", "Please enter a custom EXE name.")
             return
-        # Force an update of the security summary before export.
+        
         self.update_security_summary()
-        # Retrieve security options from the config (which are set via the dedicated security tab).
-        # Here we pass an empty dict; export_exe will read from the config.
-        from builder.export import export_exe
-        success, summary_report = export_exe(name, self.project_root, security_options={}, disable_lockdown=False)
-        # export_exe shows its own final report.
+        export_exe(exe_name, self.project_root, load_security_settings())
+
+if __name__ == "__main__":
+    from PyQt6.QtWidgets import QApplication
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    app = QApplication(sys.argv)
+    win = ExportTab(PROJECT_ROOT)
+    win.show()
+    sys.exit(app.exec())

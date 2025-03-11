@@ -29,6 +29,14 @@ from builder.ui.export_tab import ExportTab
 from builder.ui.security_mode_tab import SecurityModeTab
 from builder.ui.security_header import SecurityHeader
 
+# Helper function to center any dialog on the screen.
+def center_dialog(dialog):
+    from PyQt6.QtWidgets import QApplication
+    screen_geometry = QApplication.primaryScreen().availableGeometry()
+    dialog_geometry = dialog.frameGeometry()
+    dialog_geometry.moveCenter(screen_geometry.center())
+    dialog.move(dialog_geometry.topLeft())
+
 class BuilderUI(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -53,14 +61,15 @@ class BuilderUI(QMainWindow):
         # Add tabs.
         self.tabs.addTab(TaskBuilderTab(self.discovered_tasks, PROJECT_ROOT), "Task Builder")
         self.tabs.addTab(GiftCardTab(), "Gift Card Selection")
-        self.tabs.addTab(ExportTab(PROJECT_ROOT), "Export Options")
+        
+        # Create Export Tab and Security Mode Tab.
+        self.exportTab = ExportTab(PROJECT_ROOT)
+        self.tabs.addTab(self.exportTab, "Export Options")
         self.securityModeTab = SecurityModeTab()
         self.tabs.addTab(self.securityModeTab, "Security Mode")
         
-        # Connect the Security Mode Tab's settingsChanged signal to update the header.
-        self.securityModeTab.settingsChanged.connect(
-            lambda s: self.header.setMode(s.get("SECURITY_MODE", "Ethical"))
-        )
+        # Connect the Security Mode Tab's settingsChanged signal to update the header and Export Tab.
+        self.securityModeTab.settingsChanged.connect(self.on_security_mode_changed)
         
         # Apply global stylesheet.
         stylesheet = load_stylesheet("shared/theme/styles.qss")
@@ -68,8 +77,18 @@ class BuilderUI(QMainWindow):
             self.setStyleSheet(stylesheet)
         self.show()
     
+    def on_security_mode_changed(self, updated_config: dict):
+        mode = updated_config.get("SECURITY_MODE", "Ethical")
+        self.header.setMode(mode)
+        self.exportTab.update_security_summary()
+    
     def refresh_security_header(self):
         self.header.update_security_mode()
+    
+    def closeEvent(self, event):
+        from builder.cleanup import clean_pycache
+        clean_pycache(PROJECT_ROOT)
+        event.accept()
 
 def main():
     app = QApplication(sys.argv)

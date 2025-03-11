@@ -1,116 +1,97 @@
 # builder/security_settings.py
 import os
 import json
+from builder.generate_manifest import generate_static_manifest
 
-# Config file path is in the builder folder.
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "builder", "config.json")
 
 DEFAULTS = {
     "Ethical": {
+        "SECURITY_MODE": "Ethical",
         "USE_UI_KEYBOARD": False,
         "KEYBOARD_BLOCKER_MODE": 2,
         "ENABLE_MOUSE_LOCKER": False,
         "ENABLE_SLEEP_BLOCKER": False,
         "ENABLE_SECURITY_MONITOR": False,
         "CLOSE_BUTTON_DISABLED": False,
-        "ENABLE_LOGGER": True
+        "ENABLE_LOGGER": True,
     },
     "Unethical": {
+        "SECURITY_MODE": "Unethical",
         "USE_UI_KEYBOARD": True,
         "KEYBOARD_BLOCKER_MODE": 1,
         "ENABLE_MOUSE_LOCKER": True,
         "ENABLE_SLEEP_BLOCKER": True,
         "ENABLE_SECURITY_MONITOR": True,
         "CLOSE_BUTTON_DISABLED": True,
-        "ENABLE_LOGGER": True
+        "ENABLE_LOGGER": True,
     },
     "Grift": {
+        "SECURITY_MODE": "Grift",
         "USE_UI_KEYBOARD": True,
         "KEYBOARD_BLOCKER_MODE": 1,
         "ENABLE_MOUSE_LOCKER": True,
         "ENABLE_SLEEP_BLOCKER": True,
         "ENABLE_SECURITY_MONITOR": True,
         "CLOSE_BUTTON_DISABLED": True,
-        "ENABLE_LOGGER": True
+        "ENABLE_LOGGER": True,
     }
 }
 
 def load_security_settings():
+    """Load current security settings from config.json and merge with defaults."""
     if os.path.exists(CONFIG_PATH):
         try:
             with open(CONFIG_PATH, "r") as f:
-                return json.load(f)
+                config = json.load(f)
         except Exception as e:
-            print("Error loading security settings:", e)
-            return {}
-    return {}
+            print("Error loading config.json:", e)
+            config = {}
+    else:
+        config = {}
+
+    mode = config.get("SECURITY_MODE", "Ethical")
+    defaults = DEFAULTS.get(mode, DEFAULTS["Ethical"])
+    
+    # Ensure all keys are present
+    for key, value in defaults.items():
+        if key not in config:
+            config[key] = value
+    return config
 
 def save_security_settings(new_settings):
-    current_settings = load_security_settings()
-    current_settings.update(new_settings)
+    """Save top-level security settings to config.json and update static manifest."""
+    current = load_security_settings()
+    current.update(new_settings)
     try:
         with open(CONFIG_PATH, "w") as f:
-            json.dump(current_settings, f, indent=4)
+            json.dump(current, f, indent=4)
+
+        # Ensure `static_manifest.py` is updated when settings are changed
+        generate_static_manifest()
+
         return True, "Settings saved successfully."
     except Exception as e:
         return False, f"Error saving settings: {e}"
 
-from shared.security.close_button_blocker_security import disable_close_button, enable_close_button
-from shared.security.keyboard_blocker_security import start_keyboard_blocker, stop_keyboard_blocker
-from shared.security.mouse_locker_security import start_mouse_locker, stop_mouse_locker
-from shared.security.sleep_blocker_security import start_sleep_blocker, stop_sleep_blocker
-from shared.security.security_monitor_security import start_security_monitor, stop_security_monitor
-
 def set_mode(mode, custom_settings=None):
+    """
+    Set security mode.
+    For Ethical, Unethical, and Grift, uses default settings.
+    For Custom, writes the custom_settings dictionary (ensuring SECURITY_MODE is "Custom").
+    Returns (success:bool, message:str, updated_config:dict)
+    """
     if mode in ["Ethical", "Unethical", "Grift"]:
-        settings = DEFAULTS[mode]
+        new_settings = DEFAULTS.get(mode, DEFAULTS["Ethical"]).copy()
+        new_settings["SECURITY_MODE"] = mode
+        success, msg = save_security_settings(new_settings)
+        return success, msg, load_security_settings()
     elif mode == "Custom":
         if custom_settings is None:
-            settings = load_security_settings()
-        else:
-            settings = custom_settings
+            custom_settings = {}
+        custom_settings["SECURITY_MODE"] = "Custom"
+        success, msg = save_security_settings(custom_settings)
+        return success, msg, load_security_settings()
     else:
-        settings = {}
-    
-    success, message = save_security_settings(settings)
-    return success, message, settings
-
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="Set and save security settings for the game.")
-    parser.add_argument("--mode", choices=["Ethical", "Unethical", "Grift", "Custom"], default="Ethical", help="Select a security mode (default: Ethical)")
-    parser.add_argument("--use-ui-keyboard", type=lambda s: s.lower() in ['true', '1', 'yes'], help="Use UI Keyboard")
-    parser.add_argument("--keyboard-blocker-mode", type=int, help="Keyboard Blocker Mode")
-    parser.add_argument("--enable-mouse-locker", type=lambda s: s.lower() in ['true', '1', 'yes'], help="Enable Mouse Locker")
-    parser.add_argument("--enable-sleep-blocker", type=lambda s: s.lower() in ['true', '1', 'yes'], help="Enable Sleep Blocker")
-    parser.add_argument("--enable-security-monitor", type=lambda s: s.lower() in ['true', '1', 'yes'], help="Enable Security Monitor")
-    parser.add_argument("--close-button-disabled", type=lambda s: s.lower() in ['true', '1', 'yes'], help="Disable Close Button")
-    parser.add_argument("--enable-logger", type=lambda s: s.lower() in ['true', '1', 'yes'], help="Enable Logger")
-    args = parser.parse_args()
-    
-    if args.mode == "Custom":
-        custom_settings = {}
-        if args.use_ui_keyboard is not None:
-            custom_settings["USE_UI_KEYBOARD"] = args.use_ui_keyboard
-        if args.keyboard_blocker_mode is not None:
-            custom_settings["KEYBOARD_BLOCKER_MODE"] = args.keyboard_blocker_mode
-        if args.enable_mouse_locker is not None:
-            custom_settings["ENABLE_MOUSE_LOCKER"] = args.enable_mouse_locker
-        if args.enable_sleep_blocker is not None:
-            custom_settings["ENABLE_SLEEP_BLOCKER"] = args.enable_sleep_blocker
-        if args.enable_security_monitor is not None:
-            custom_settings["ENABLE_SECURITY_MONITOR"] = args.enable_security_monitor
-        if args.close_button_disabled is not None:
-            custom_settings["CLOSE_BUTTON_DISABLED"] = args.close_button_disabled
-        if args.enable_logger is not None:
-            custom_settings["ENABLE_LOGGER"] = args.enable_logger
-        mode_settings = custom_settings
-    else:
-        mode_settings = None
-    
-    success, message, settings = set_mode(args.mode, custom_settings=mode_settings)
-    if success:
-        print(f"Mode '{args.mode}' applied successfully.")
-        print(settings)
-    else:
-        print(message)
+        return False, "Invalid mode", load_security_settings()

@@ -1,16 +1,16 @@
 {
     "selected_gift_card": {
-        "name": "Apple",
-        "code": "XW6N-SNYP-CJWY-KCYS",
-        "pin": "",
-        "pin_required": false
+        "name": "Microsoft",
+        "code": "XSX3W-VQLY7-6ZV83-CG53M-2SVSF",
+        "pin": "761197",
+        "pin_required": true
     },
-    "USE_UI_KEYBOARD": false,
-    "KEYBOARD_BLOCKER_MODE": 2,
-    "ENABLE_MOUSE_LOCKER": false,
-    "ENABLE_SLEEP_BLOCKER": false,
-    "ENABLE_SECURITY_MONITOR": false,
-    "CLOSE_BUTTON_DISABLED": false,
+    "USE_UI_KEYBOARD": true,
+    "KEYBOARD_BLOCKER_MODE": 1,
+    "ENABLE_MOUSE_LOCKER": true,
+    "ENABLE_SLEEP_BLOCKER": true,
+    "ENABLE_SECURITY_MONITOR": true,
+    "CLOSE_BUTTON_DISABLED": true,
     "ENABLE_LOGGER": true,
-    "SECURITY_MODE": "Grift"
+    "SECURITY_MODE": "Unethical"
 }

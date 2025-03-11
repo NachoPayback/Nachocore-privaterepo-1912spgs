@@ -2,13 +2,14 @@
 """
 Export Module for Nachocore Builder
 
-This module updates configuration files, generates a static manifest,
+This module updates config.json, generates a static manifest,
 and exports the game as a standalone executable via PyInstaller.
-It cleans up build artifacts and shows a final export report that summarizes:
-  - Security Settings (with Security Mode listed first),
+It cleans up build artifacts (including __pycache__ directories)
+and shows a styled QDialog summarizing:
+  - Security Settings,
   - Discovered Task Types,
-  - And the imported Task List.
-The final report is displayed in a styled QDialog using our global stylesheet.
+  - Imported Task List.
+The final EXE is placed in the 'exported' folder.
 """
 
 import os
@@ -33,32 +34,20 @@ except ImportError:
         return os.path.join(PROJECT_ROOT, relative_path)
 
 from builder.utils import normalize_task_type
-from generate_manifest import generate_static_manifest  # Updated below
+from generate_manifest import generate_static_manifest
+
+# Helper to center dialogs
+def center_dialog(dialog):
+    from PyQt6.QtWidgets import QApplication
+    screen_geometry = QApplication.primaryScreen().availableGeometry()
+    dialog_geometry = dialog.frameGeometry()
+    dialog_geometry.moveCenter(screen_geometry.center())
+    dialog.move(dialog_geometry.topLeft())
 
 def get_hidden_imports(project_root):
-    if getattr(sys, "frozen", False):
-        try:
-            from builder.static_manifest import TASK_MANIFEST
-            return list(TASK_MANIFEST.values())
-        except Exception as e:
-            print("DEBUG: Error importing TASK_MANIFEST:", e)
-            return []
-    hidden_imports = []
-    tasks_folder = os.path.join(get_data_path("shared/tasks"))
-    for filepath in glob.glob(os.path.join(tasks_folder, "*.py")):
-        filename = os.path.basename(filepath)
-        if filename == "__init__.py":
-            continue
-        module_name = os.path.splitext(filename)[0]
-        spec = importlib.util.spec_from_file_location(module_name, filepath)
-        module = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(module)
-            if hasattr(module, "TASK_TYPE"):
-                hidden_imports.append(f"shared.tasks.{module_name}")
-        except Exception as e:
-            print(f"DEBUG: Error importing {filename}: {e}")
-    additional = [
+    hidden_imports = [
+        "game.game_ui",  # using package syntax (ensure __init__.py is present)
+        "game.game_logic",
         "shared.config",
         "shared.theme.theme",
         "shared.security.close_button_blocker_security",
@@ -69,7 +58,13 @@ def get_hidden_imports(project_root):
         "shared.utils.logger",
         "shared.utils.ui_keyboard",
     ]
-    hidden_imports.extend(additional)
+    tasks_folder = os.path.join(get_data_path("shared/tasks"))
+    for filepath in glob.glob(os.path.join(tasks_folder, "*.py")):
+        filename = os.path.basename(filepath)
+        if filename == "__init__.py":
+            continue
+        module_name = os.path.splitext(filename)[0]
+        hidden_imports.append(f"shared.tasks.{module_name}")
     return hidden_imports
 
 def get_data_files(project_root):
@@ -100,10 +95,11 @@ def cleanup_artifacts(project_root):
     for file in os.listdir(project_root):
         if file.endswith(".spec"):
             os.remove(os.path.join(project_root, file))
+    from builder.cleanup import clean_pycache
+    clean_pycache(project_root)
 
 def build_export_summary(project_root):
     lines = []
-    # 1) Security Settings.
     from builder.security_settings import load_security_settings
     sec_settings = load_security_settings()
     mode = sec_settings.get("SECURITY_MODE", "Ethical")
@@ -116,7 +112,6 @@ def build_export_summary(project_root):
     lines.append(f"Close Button Disabled: {sec_settings.get('CLOSE_BUTTON_DISABLED', False)}")
     lines.append(f"Logger: {sec_settings.get('ENABLE_LOGGER', False)}")
     
-    # 2) Discovered Task Types.
     from builder.task_builder import discover_task_modules, display_task_type
     task_modules = discover_task_modules()
     lines.append("\n=== Discovered Task Types ===")
@@ -127,8 +122,7 @@ def build_export_summary(project_root):
     else:
         lines.append("  (No task types found)")
     
-    # 3) Task List.
-    tasks_file = get_data_files(project_root)  # Not used directly; use get_data_path next.
+    tasks_file = get_data_files(project_root)
     tasks_file = get_data_path(os.path.join("builder", "data", "tasks.json"))
     try:
         with open(tasks_file, "r") as f:
@@ -175,7 +169,13 @@ def show_export_readout(success, summary):
     button_layout.addWidget(close_button)
     layout.addLayout(button_layout)
     
+    from shared.theme.theme import load_stylesheet
+    global_stylesheet = load_stylesheet("shared/theme/styles.qss")
+    if global_stylesheet:
+        dialog.setStyleSheet(global_stylesheet)
+    
     dialog.resize(800, 600)
+    center_dialog(dialog)  # center the dialog on the screen
     dialog.exec()
 
 def export_exe(custom_name, project_root, security_options, disable_lockdown=False):
@@ -194,16 +194,21 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
         with open(config_path, "w") as f:
             json.dump(config, f, indent=4)
     except Exception as e:
-        return False, "Error writing config: {}".format(e)
+        return False, f"Error writing config: {e}"
     
     generate_static_manifest()
     
-    # Show confirmation dialog for security settings.
-    from builder.security_settings import load_security_settings
+    from builder.security_settings import load_security_settings, set_mode
     current_settings = load_security_settings()
-    confirmation = QMessageBox.question(
-        None,
-        "Confirm Security Settings",
+    if current_settings.get("SECURITY_MODE") == "Grift":
+        success_mode, msg, updated = set_mode("Grift")
+        current_settings = updated
+    
+    from shared.theme.theme import load_stylesheet
+    styled_sheet = load_stylesheet("shared/theme/styles.qss")
+    msg_box = QMessageBox()
+    msg_box.setWindowTitle("Confirm Security Settings")
+    msg_box.setText(
         f"Please confirm the following security settings before export:\n\n"
         f"Security Mode: {current_settings.get('SECURITY_MODE', 'Ethical')}\n"
         f"UI Keyboard: {current_settings.get('USE_UI_KEYBOARD', False)}\n"
@@ -213,13 +218,16 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
         f"Security Monitor: {current_settings.get('ENABLE_SECURITY_MONITOR', False)}\n"
         f"Close Button Disabled: {current_settings.get('CLOSE_BUTTON_DISABLED', False)}\n"
         f"Logger: {current_settings.get('ENABLE_LOGGER', False)}\n\n"
-        "Do you wish to proceed?",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        "Do you wish to proceed?"
     )
+    msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+    if styled_sheet:
+        msg_box.setStyleSheet(styled_sheet)
+    center_dialog(msg_box)  # center the confirmation box
+    confirmation = msg_box.exec()
     if confirmation != QMessageBox.StandardButton.Yes:
         return False, "Export cancelled by user."
     
-    # Use the bootstrap game file (game/game.py) as the entry point.
     game_script = os.path.join(project_root, "game", "game.py")
     if not os.path.exists(game_script):
         error_msg = f"Main game script not found at: {game_script}"
@@ -244,6 +252,7 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
         "--onefile",
         "--windowed",
         "--strip",
+        "--distpath", export_dir,
         "--name", custom_name,
         "--paths", project_root,
     ] + upx_flag
@@ -269,6 +278,14 @@ def export_exe(custom_name, project_root, security_options, disable_lockdown=Fal
         summary_report = build_export_summary(project_root)
         show_export_readout(False, summary_report)
         return False, str(e)
+
+# Helper function to center dialogs
+def center_dialog(dialog):
+    from PyQt6.QtWidgets import QApplication
+    screen_geometry = QApplication.primaryScreen().availableGeometry()
+    dialog_geometry = dialog.frameGeometry()
+    dialog_geometry.moveCenter(screen_geometry.center())
+    dialog.move(dialog_geometry.topLeft())
 
 if __name__ == "__main__":
     security_opts = {
