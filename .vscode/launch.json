@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Builder",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/builder/builder.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

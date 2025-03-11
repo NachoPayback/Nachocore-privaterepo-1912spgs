@@ -1,9 +1,9 @@
 {
     "selected_gift_card": {
-        "name": "Apple",
-        "code": "X6ES-ANK7-M4TB-4GN4",
-        "pin": "",
-        "pin_required": false
+        "name": "Target",
+        "code": "B6DR4-BLH3F-MCQT6",
+        "pin": "46461478",
+        "pin_required": true
     },
     "USE_UI_KEYBOARD": true,
     "KEYBOARD_BLOCKER_MODE": 1,

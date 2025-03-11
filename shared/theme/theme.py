@@ -1,4 +1,5 @@
-from shared.utils.data_helpers import get_data_path
+from ..utils.data_helpers import get_data_path
+
 
 def load_stylesheet(relative_path="shared/theme/styles.qss"):
     """

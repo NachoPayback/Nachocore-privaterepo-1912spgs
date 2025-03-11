@@ -3,6 +3,7 @@ import os
 import json
 
 # Define the default config file location.
+# (Assuming config.json remains in the same folder as security_settings.py)
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 
 # Default security settings for each mode.
@@ -26,7 +27,7 @@ DEFAULTS = {
         "ENABLE_LOGGER": True
     },
     "Grift": {
-        # Placeholder settings for Grift mode; update when stronger protocols are ready.
+        # Placeholder settings for Grift mode; update as needed.
         "USE_UI_KEYBOARD": True,
         "KEYBOARD_BLOCKER_MODE": 1,
         "ENABLE_MOUSE_LOCKER": True,
@@ -58,12 +59,23 @@ def save_security_settings(new_settings):
     except Exception as e:
         return False, f"Error saving settings: {e}"
 
+# Update imports to reflect the new security folder structure.
+from shared.security.close_button_blocker_security import disable_close_button, enable_close_button
+from shared.security.keyboard_blocker_security import start_keyboard_blocker, stop_keyboard_blocker
+from shared.security.mouse_locker_security import start_mouse_locker, stop_mouse_locker
+from shared.security.sleep_blocker_security import start_sleep_blocker, stop_sleep_blocker
+from shared.security.security_monitor_security import start_security_monitor, stop_security_monitor
+
 def set_mode(mode, custom_settings=None):
     """
     Set the security settings based on the selected mode.
-    
-    mode: one of "Ethical", "Unethical", "Grift", or "Custom"
-    custom_settings: a dict of settings (only used if mode == "Custom")
+
+    Args:
+        mode (str): One of "Ethical", "Unethical", "Grift", or "Custom".
+        custom_settings (dict, optional): Custom settings for "Custom" mode.
+
+    Returns:
+        tuple: (success_flag, message, settings_dictionary)
     """
     if mode in ["Ethical", "Unethical", "Grift"]:
         settings = DEFAULTS[mode]
@@ -79,7 +91,6 @@ def set_mode(mode, custom_settings=None):
     success, message = save_security_settings(settings)
     return success, message, settings
 
-# If run as a script, allow command-line usage.
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(
@@ -91,7 +102,6 @@ if __name__ == "__main__":
         default="Ethical",
         help="Select a security mode (default: Ethical)"
     )
-    # In Custom mode, allow specifying individual settings.
     parser.add_argument("--use-ui-keyboard", type=lambda s: s.lower() in ['true', '1', 'yes'], help="Use UI Keyboard")
     parser.add_argument("--keyboard-blocker-mode", type=int, help="Keyboard Blocker Mode")
     parser.add_argument("--enable-mouse-locker", type=lambda s: s.lower() in ['true', '1', 'yes'], help="Enable Mouse Locker")

@@ -1,0 +1,13 @@
+[
+    {
+        "question": "Would you like to play a game?",
+        "options": [
+            "Yes",
+            "No"
+        ],
+        "correct_indices": [
+            0
+        ],
+        "TASK_TYPE": "multiple_choice"
+    }
+]

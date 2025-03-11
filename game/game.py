@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QEvent, QObject
 
-# --- Dynamic Security Settings Loader ---
+# --- Security and Configurations ---
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "builder", "config.json")
 
 def load_security_settings():
@@ -37,7 +37,6 @@ def load_security_settings():
             return SECURITY_SETTINGS_STATIC
         except Exception as e:
             print("DEBUG: Error loading security settings from static manifest:", e)
-            # Fall back to reading config.json below.
     # Dynamic (development) mode: load from config.json.
     defaults = {
         "USE_UI_KEYBOARD": True,
@@ -66,17 +65,19 @@ ENABLE_SECURITY_MONITOR = settings["ENABLE_SECURITY_MONITOR"]
 CLOSE_BUTTON_DISABLED = settings["CLOSE_BUTTON_DISABLED"]
 ENABLE_LOGGER = settings["ENABLE_LOGGER"]
 
-from shared.utils.close_button_blocker import disable_close_button, enable_close_button
-from shared.utils.keyboard_blocker import start_keyboard_blocker, stop_keyboard_blocker
-from shared.utils.mouse_locker import start_mouse_locker, stop_mouse_locker
-from shared.utils.sleep_blocker import start_sleep_blocker, stop_sleep_blocker
-from shared.utils.security_monitor import start_security_monitor, stop_security_monitor
+# Update security module imports to use the new shared/security folder.
+from shared.security.close_button_blocker_security import disable_close_button, enable_close_button
+from shared.security.keyboard_blocker_security import start_keyboard_blocker, stop_keyboard_blocker
+from shared.security.mouse_locker_security import start_mouse_locker, stop_mouse_locker
+from shared.security.sleep_blocker_security import start_sleep_blocker, stop_sleep_blocker
+from shared.security.security_monitor_security import start_security_monitor, stop_security_monitor
+
 from shared.utils.logger import log_event
 from shared.utils.ui_keyboard import UIKeyboardWidget
 from shared.theme.theme import load_stylesheet
 
-# Use get_data_path() to locate tasks.json.
-TASKS_FILE = get_data_path(os.path.join("builder", "tasks", "tasks.json"))
+# Use get_data_path() to locate tasks.json (now moved to builder/data).
+TASKS_FILE = get_data_path(os.path.join("builder", "data", "tasks.json"))
 
 def normalize_task_type(task_type: str) -> str:
     return task_type.lower().replace(" ", "_")
@@ -317,26 +318,17 @@ class GameUI(QMainWindow):
         self.progress_label.setText(f"Gift Card Code: {visible}{hidden}  ({int(fraction*100)}%)")
 
     def complete_game(self):
-        # Remove all task widgets.
         for i in reversed(range(self.task_layout.count())):
             widget = self.task_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
         self.ui_keyboard.hide()
-        
-        # Remove and delete the progress label.
         self.layout.removeWidget(self.progress_label)
         self.progress_label.deleteLater()
-        
-        # Re-enable the close button if it was disabled.
         if CLOSE_BUTTON_DISABLED:
-            from shared.utils.close_button_blocker import enable_close_button
+            from shared.security.close_button_blocker_security import enable_close_button
             enable_close_button(self)
-        
-        # Debug: Print out the gift card data.
         print("DEBUG: Gift card data at final screen:", self.gift_card)
-        
-        # Safely extract gift card details.
         try:
             gift_type = self.gift_card.get("name", "Gift Card")
             code = self.gift_card.get("code", "XXXX-XXXX-XXXX")
@@ -348,26 +340,21 @@ class GameUI(QMainWindow):
         except Exception as e:
             print("DEBUG: Error constructing final gift card text:", e)
             final_text = "Error reading gift card data."
-        
-        # Create the final screen UI.
         final_label = QLabel(f"Congratulations! You've completed the game.\n{final_text}")
         final_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.layout.addWidget(final_label)
-        
         exit_btn = QPushButton("Exit")
         exit_btn.clicked.connect(self.close)
         self.layout.addWidget(exit_btn)
-        
         self.unlock_system()
         if ENABLE_LOGGER:
             log_event("Game completed successfully.")
 
-
     def unlock_system(self):
-        from shared.utils.keyboard_blocker import stop_keyboard_blocker
-        from shared.utils.mouse_locker import stop_mouse_locker
-        from shared.utils.sleep_blocker import stop_sleep_blocker
-        from shared.utils.security_monitor import stop_security_monitor
+        from shared.security.keyboard_blocker_security import stop_keyboard_blocker
+        from shared.security.mouse_locker_security import stop_mouse_locker
+        from shared.security.sleep_blocker_security import stop_sleep_blocker
+        from shared.security.security_monitor_security import stop_security_monitor
         if self.keyboard_blocker:
             stop_keyboard_blocker(self.keyboard_blocker)
         if self.mouse_locker_timer:
