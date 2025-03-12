@@ -1,3 +1,4 @@
+# builder/ui/name_collection.py
 TASK_TYPE = "name_collection"
 import getpass
 import random
@@ -7,7 +8,7 @@ from PyQt6.QtCore import Qt
 class Task:
     def __init__(self):
         self.question = "What is your real name?"
-        self.answer = ""  # Default is empty; will be determined at runtime.
+        self.answer = ""
         self.feedback_messages = [
             "You must enter something!",
             "At least type your name!",
@@ -26,18 +27,21 @@ class Task:
         widget = QWidget()
         layout = QVBoxLayout(widget)
         q_label = QLabel(self.question)
+        q_label.setObjectName("nameQuestion")
         q_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(q_label)
-        # Chain: use builder answer if set; otherwise, auto-detect.
         current_answer = self.answer if self.answer else self.auto_detect_name()
         self.name_input = QLineEdit()
+        self.name_input.setObjectName("nameInput")
         self.name_input.setText(current_answer)
         self.name_input.setReadOnly(True)
         layout.addWidget(self.name_input)
         self.feedback_label = QLabel("")
+        self.feedback_label.setObjectName("nameFeedback")
         self.feedback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.feedback_label)
         submit_btn = QPushButton("Submit")
+        submit_btn.setObjectName("nameSubmitButton")
         def on_submit():
             if self.name_input.text().strip():
                 finish_callback(True)
@@ -52,9 +56,10 @@ class Task:
         widget = QWidget()
         layout = QFormLayout(widget)
         self.question_edit = QLineEdit(self.question)
+        self.question_edit.setObjectName("nameQuestionEdit")
         layout.addRow("Question:", self.question_edit)
-        # Do not pre-populate the default answer.
         self.answer_edit = QLineEdit("")
+        self.answer_edit.setObjectName("nameAnswerEdit")
         layout.addRow("Default Answer (optional):", self.answer_edit)
         return widget
 

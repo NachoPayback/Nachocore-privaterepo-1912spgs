@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QComboBox,
     QCheckBox, QPushButton, QFormLayout, QMessageBox, QInputDialog
 )
-from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import Qt, pyqtSignal
 from builder.security_settings import set_mode, load_security_settings
 from builder.presets import list_presets, load_preset, save_preset
 
@@ -17,15 +17,16 @@ SECURITY_MODES = {
 }
 
 def generate_live_summary(settings: dict) -> str:
-    lines = []
-    lines.append(f"Mode: {settings.get('SECURITY_MODE', 'Ethical')}")
-    lines.append(f"UI Keyboard: {settings.get('USE_UI_KEYBOARD', False)}")
-    lines.append(f"Keyboard Blocker: {settings.get('KEYBOARD_BLOCKER_MODE', 0)}")
-    lines.append(f"Mouse Locker: {settings.get('ENABLE_MOUSE_LOCKER', False)}")
-    lines.append(f"Sleep Blocker: {settings.get('ENABLE_SLEEP_BLOCKER', False)}")
-    lines.append(f"Security Monitor: {settings.get('ENABLE_SECURITY_MONITOR', False)}")
-    lines.append(f"Close Button Disabled: {settings.get('CLOSE_BUTTON_DISABLED', False)}")
-    lines.append(f"Logger: {settings.get('ENABLE_LOGGER', False)}")
+    lines = [
+        f"Mode: {settings.get('SECURITY_MODE', 'Ethical')}",
+        f"UI Keyboard: {settings.get('USE_UI_KEYBOARD', False)}",
+        f"Keyboard Blocker: {settings.get('KEYBOARD_BLOCKER_MODE', 0)}",
+        f"Mouse Locker: {settings.get('ENABLE_MOUSE_LOCKER', False)}",
+        f"Sleep Blocker: {settings.get('ENABLE_SLEEP_BLOCKER', False)}",
+        f"Security Monitor: {settings.get('ENABLE_SECURITY_MONITOR', False)}",
+        f"Close Button Disabled: {settings.get('CLOSE_BUTTON_DISABLED', False)}",
+        f"Logger: {settings.get('ENABLE_LOGGER', False)}"
+    ]
     return "\n".join(lines)
 
 class SecurityModeTab(QWidget):
@@ -40,18 +41,23 @@ class SecurityModeTab(QWidget):
         layout = QVBoxLayout(self)
         
         slider_layout = QHBoxLayout()
-        slider_layout.addWidget(QLabel("Set Security Mode:"))
+        slider_label = QLabel("Set Security Mode:")
+        slider_label.setObjectName("securityModeLabel")
+        slider_layout.addWidget(slider_label)
         self.modeSlider = QSlider(Qt.Orientation.Horizontal)
+        self.modeSlider.setObjectName("securityModeSlider")
         self.modeSlider.setRange(0, 3)
         self.modeSlider.setSingleStep(1)
         self.modeSlider.valueChanged.connect(self.on_slider_changed)
         slider_layout.addWidget(self.modeSlider)
         self.modeDisplay = QLabel("Ethical")
+        self.modeDisplay.setObjectName("securityModeDisplay")
         self.modeDisplay.setStyleSheet("font-weight: bold;")
         slider_layout.addWidget(self.modeDisplay)
         layout.addLayout(slider_layout)
         
         self.customContainer = QWidget()
+        self.customContainer.setObjectName("securityCustomContainer")
         form = QFormLayout(self.customContainer)
         self.chk_uiKeyboard = QCheckBox("Use UI Keyboard")
         self.cbo_blocker = QComboBox()
@@ -69,25 +75,21 @@ class SecurityModeTab(QWidget):
         layout.addWidget(self.customContainer)
         
         self.summaryLabel = QLabel("Security Summary will appear here")
+        self.summaryLabel.setObjectName("securitySummaryLabel")
         layout.addWidget(self.summaryLabel)
         
-        # Connect custom controls
-        self.chk_uiKeyboard.stateChanged.connect(self.on_custom_control_changed)
-        self.cbo_blocker.currentIndexChanged.connect(self.on_custom_control_changed)
-        self.chk_mouse.stateChanged.connect(self.on_custom_control_changed)
-        self.chk_sleep.stateChanged.connect(self.on_custom_control_changed)
-        self.chk_monitor.stateChanged.connect(self.on_custom_control_changed)
-        
-        # Presets
         preset_layout = QHBoxLayout()
         preset_layout.addWidget(QLabel("Preset:"))
         self.presetDropdown = QComboBox()
+        self.presetDropdown.setObjectName("securityPresetDropdown")
         self.refresh_presets_dropdown()
         preset_layout.addWidget(self.presetDropdown)
         self.loadPresetButton = QPushButton("Load Preset")
+        self.loadPresetButton.setObjectName("loadSecurityPresetButton")
         self.loadPresetButton.clicked.connect(self.load_preset)
         preset_layout.addWidget(self.loadPresetButton)
         self.savePresetButton = QPushButton("Save Preset")
+        self.savePresetButton.setObjectName("saveSecurityPresetButton")
         self.savePresetButton.clicked.connect(self.save_preset)
         preset_layout.addWidget(self.savePresetButton)
         layout.addLayout(preset_layout)
@@ -131,7 +133,6 @@ class SecurityModeTab(QWidget):
         if mode in ["Ethical", "Unethical", "Grift"]:
             success, msg, updated = set_mode(mode)
         else:
-            # Custom
             custom_settings = {
                 "USE_UI_KEYBOARD": self.chk_uiKeyboard.isChecked(),
                 "KEYBOARD_BLOCKER_MODE": self.cbo_blocker.currentData(),

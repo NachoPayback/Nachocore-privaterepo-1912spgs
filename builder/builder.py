@@ -1,5 +1,4 @@
 # builder/builder.py
-
 import os
 import sys
 import json
@@ -13,23 +12,21 @@ if PROJECT_ROOT not in sys.path:
 print("PROJECT_ROOT:", PROJECT_ROOT)
 print("sys.path:", sys.path)
 
-# Now load the stylesheet.
+# Load stylesheet helper and path resolution
 from shared.theme.theme import load_stylesheet
+from shared.utils.data_helpers import get_data_path
 
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout, QLabel
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont
 
-# Configuration file path.
-CONFIG_PATH = os.path.join(PROJECT_ROOT, "builder", "config.json")
-
-# Import UI tabs.
+# Import your UI tabs (all original functionality remains intact)
 from builder.ui.task_builder_tab import TaskBuilderTab
 from builder.ui.gift_card_tab import GiftCardTab
 from builder.ui.export_tab import ExportTab
 from builder.ui.security_mode_tab import SecurityModeTab
 from builder.ui.security_header import SecurityHeader
 
-# Helper function to center any dialog on the screen.
 def center_dialog(dialog):
     from PyQt6.QtWidgets import QApplication
     screen_geometry = QApplication.primaryScreen().availableGeometry()
@@ -42,12 +39,16 @@ class BuilderUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("Nachocore v1.1")
         self.setGeometry(100, 100, 900, 600)
+        
+        # Set main container and assign an object name for group styling.
         central = QWidget()
+        central.setObjectName("mainContainer")
         main_layout = QVBoxLayout(central)
         self.setCentralWidget(central)
         
-        # Security Header: displays current security mode.
+        # Security Header (assign object name for targeted styling)
         self.header = SecurityHeader()
+        self.header.setObjectName("headerLabel")
         main_layout.addWidget(self.header)
         
         # Tab widget.
@@ -58,23 +59,37 @@ class BuilderUI(QMainWindow):
         from builder.task_builder import discover_task_modules
         self.discovered_tasks = discover_task_modules()
         
-        # Add tabs.
+        # Add tabs (all original functionality preserved)
         self.tabs.addTab(TaskBuilderTab(self.discovered_tasks, PROJECT_ROOT), "Task Builder")
         self.tabs.addTab(GiftCardTab(), "Gift Card Selection")
-        
-        # Create Export Tab and Security Mode Tab.
         self.exportTab = ExportTab(PROJECT_ROOT)
         self.tabs.addTab(self.exportTab, "Export Options")
         self.securityModeTab = SecurityModeTab()
         self.tabs.addTab(self.securityModeTab, "Security Mode")
-        
-        # Connect the Security Mode Tab's settingsChanged signal to update the header and Export Tab.
         self.securityModeTab.settingsChanged.connect(self.on_security_mode_changed)
         
-        # Apply global stylesheet.
-        stylesheet = load_stylesheet("shared/theme/styles.qss")
-        if stylesheet:
-            self.setStyleSheet(stylesheet)
+        # --- STYLE INTEGRATION ---
+        # Load global stylesheet from builder exported file.
+        stylesheet_path = get_data_path("shared/themes/builder/exported_stylesheet.qss")
+        if os.path.exists(stylesheet_path):
+            try:
+                with open(stylesheet_path, "r") as f:
+                    stylesheet = f.read()
+                    self.setStyleSheet(stylesheet)
+            except Exception as e:
+                print("Error loading builder stylesheet:", e)
+        # Load builder font configuration and apply it.
+        font_config_path = get_data_path("shared/themes/builder/font_config.json")
+        if os.path.exists(font_config_path):
+            try:
+                with open(font_config_path, "r") as f:
+                    font_config = json.load(f)
+                chosen_font = font_config.get("font", "Arial")
+                self.setFont(QFont(chosen_font))
+            except Exception as e:
+                print("Error loading builder font config:", e)
+        # --- END STYLE INTEGRATION ---
+        
         self.show()
     
     def on_security_mode_changed(self, updated_config: dict):

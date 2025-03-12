@@ -25,19 +25,22 @@ class TaskBuilderTab(QWidget):
         # Main horizontal layout divides the UI into two columns.
         main_layout = QHBoxLayout(self)
         
-        # LEFT: Task List Table
+        # LEFT: Task List Table with object name.
         self.taskTable = TaskListTable()
+        self.taskTable.setObjectName("taskListTable")
         self.taskTable.rowDoubleClicked.connect(self.on_task_double_clicked)
         main_layout.addWidget(self.taskTable, 2)
         
-        # RIGHT: Controls Panel
+        # RIGHT: Controls Panel with object name.
         right_panel = QWidget()
+        right_panel.setObjectName("taskBuilderControls")
         right_layout = QVBoxLayout(right_panel)
         right_layout.setSpacing(5)
         right_layout.setContentsMargins(5, 5, 5, 5)
         
-        # --- Top Section: Task Type Selection & Dynamic Task Builder ---
+        # Top Section: Task Type Selection & Dynamic Task Builder.
         top_section = QWidget()
+        top_section.setObjectName("taskBuilderTopSection")
         top_layout = QVBoxLayout(top_section)
         top_layout.setSpacing(5)
         top_layout.setContentsMargins(0, 0, 0, 0)
@@ -45,8 +48,10 @@ class TaskBuilderTab(QWidget):
         # Task Type dropdown row.
         type_layout = QHBoxLayout()
         type_label = QLabel("Task Type:")
+        type_label.setObjectName("taskTypeLabel")
         type_layout.addWidget(type_label)
-        self.taskTypeDropdown = QComboBox()  # Ensure this is defined.
+        self.taskTypeDropdown = QComboBox()
+        self.taskTypeDropdown.setObjectName("taskTypeDropdown")
         for norm in self.discovered_tasks:
             friendly = display_task_type(norm)
             self.taskTypeDropdown.addItem(friendly, norm)
@@ -55,6 +60,7 @@ class TaskBuilderTab(QWidget):
         
         # Dynamic Task Builder widget container.
         self.builderWidgetContainer = QWidget()
+        self.builderWidgetContainer.setObjectName("taskBuilderWidgetContainer")
         self.builderWidgetLayout = QVBoxLayout(self.builderWidgetContainer)
         self.builderWidgetLayout.setSpacing(5)
         self.builderWidgetLayout.setContentsMargins(0, 0, 0, 0)
@@ -62,13 +68,14 @@ class TaskBuilderTab(QWidget):
         
         right_layout.addWidget(top_section, 1)
         
-        # --- Bottom Section: Action Buttons and Preset Controls ---
+        # Bottom Section: Action Buttons and Preset Controls.
         bottom_section = QWidget()
+        bottom_section.setObjectName("taskBuilderBottomSection")
         bottom_layout = QVBoxLayout(bottom_section)
         bottom_layout.setSpacing(5)
         bottom_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Group 1: Task Actions
+        # Group 1: Task Actions.
         self.taskActionsContainer = QWidget()
         self.taskActionsContainer.setObjectName("taskActionsContainer")
         actions_layout = QHBoxLayout(self.taskActionsContainer)
@@ -76,24 +83,28 @@ class TaskBuilderTab(QWidget):
         actions_layout.setContentsMargins(0, 0, 0, 0)
         
         self.addTaskButton = QPushButton("Add Task")
+        self.addTaskButton.setObjectName("addTaskButton")
         self.addTaskButton.clicked.connect(self.add_task)
         actions_layout.addWidget(self.addTaskButton)
         
         self.deleteTaskButton = QPushButton("Delete Task")
+        self.deleteTaskButton.setObjectName("deleteTaskButton")
         self.deleteTaskButton.clicked.connect(self.delete_task)
         actions_layout.addWidget(self.deleteTaskButton)
         
         self.clearTasksButton = QPushButton("Clear All")
+        self.clearTasksButton.setObjectName("clearTasksButton")
         self.clearTasksButton.clicked.connect(self.clear_tasks)
         actions_layout.addWidget(self.clearTasksButton)
         
         self.saveTaskListButton = QPushButton("Save Task List")
+        self.saveTaskListButton.setObjectName("saveTaskListButton")
         self.saveTaskListButton.clicked.connect(self.save_tasks)
         actions_layout.addWidget(self.saveTaskListButton)
         
         bottom_layout.addWidget(self.taskActionsContainer)
         
-        # Group 2: Task Presets
+        # Group 2: Task Presets.
         self.taskPresetsContainer = QWidget()
         self.taskPresetsContainer.setObjectName("taskPresetsContainer")
         presets_layout = QHBoxLayout(self.taskPresetsContainer)
@@ -102,14 +113,17 @@ class TaskBuilderTab(QWidget):
         
         presets_layout.addWidget(QLabel("Preset:"))
         self.taskPresetDropdown = QComboBox()
+        self.taskPresetDropdown.setObjectName("taskPresetDropdown")
         self.refresh_task_presets()
         presets_layout.addWidget(self.taskPresetDropdown)
         
         self.loadTaskPresetButton = QPushButton("Load Preset")
+        self.loadTaskPresetButton.setObjectName("loadTaskPresetButton")
         self.loadTaskPresetButton.clicked.connect(self.load_task_preset)
         presets_layout.addWidget(self.loadTaskPresetButton)
         
         self.saveTaskPresetButton = QPushButton("Save Preset")
+        self.saveTaskPresetButton.setObjectName("saveTaskPresetButton")
         self.saveTaskPresetButton.clicked.connect(self.save_task_preset)
         presets_layout.addWidget(self.saveTaskPresetButton)
         
@@ -119,9 +133,37 @@ class TaskBuilderTab(QWidget):
         
         main_layout.addWidget(right_panel, 1)
         
-        # Connect task type dropdown change to load builder widget.
         self.taskTypeDropdown.currentIndexChanged.connect(self.load_task_template)
         self.load_task_template()
+    
+    def add_task(self):
+        if self.current_task_builder and hasattr(self.current_task_builder, "get_task_data"):
+            try:
+                new_data = self.current_task_builder.get_task_data()
+                new_data["TASK_TYPE"] = self.taskTypeDropdown.currentData()
+                self.task_manager.add_task(new_data)
+            except Exception as e:
+                QMessageBox.warning(self, "Warning", f"Error adding task: {e}")
+        else:
+            QMessageBox.warning(self, "Warning", "No task template available to add.")
+    
+    def delete_task(self):
+        selected_rows = self.taskTable.selectionModel().selectedRows()
+        if selected_rows:
+            index = selected_rows[0].row()
+            self.task_manager.delete_task(index)
+        else:
+            QMessageBox.warning(self, "Warning", "No task selected.")
+    
+    def clear_tasks(self):
+        reply = QMessageBox.question(self, "Confirm", "Clear all tasks?",
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            self.task_manager.clear_tasks()
+    
+    def save_tasks(self):
+        self.task_manager.save_tasks()
+        QMessageBox.information(self, "Tasks Saved", "Task list saved successfully.")
     
     def refresh_task_presets(self):
         self.taskPresetDropdown.clear()
@@ -171,35 +213,6 @@ class TaskBuilderTab(QWidget):
                     self.builderWidgetLayout.addWidget(widget)
                 except Exception as e:
                     QMessageBox.critical(self, "Error", f"Error loading template for {norm}: {e}")
-    
-    def add_task(self):
-        if self.current_task_builder and hasattr(self.current_task_builder, "get_task_data"):
-            try:
-                new_data = self.current_task_builder.get_task_data()
-                new_data["TASK_TYPE"] = self.taskTypeDropdown.currentData()
-                self.task_manager.add_task(new_data)
-            except Exception as e:
-                QMessageBox.warning(self, "Warning", f"Error adding task: {e}")
-        else:
-            QMessageBox.warning(self, "Warning", "No task template available to add.")
-    
-    def delete_task(self):
-        selected_rows = self.taskTable.selectionModel().selectedRows()
-        if selected_rows:
-            index = selected_rows[0].row()
-            self.task_manager.delete_task(index)
-        else:
-            QMessageBox.warning(self, "Warning", "No task selected.")
-    
-    def clear_tasks(self):
-        reply = QMessageBox.question(self, "Confirm", "Clear all tasks?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if reply == QMessageBox.StandardButton.Yes:
-            self.task_manager.clear_tasks()
-    
-    def save_tasks(self):
-        self.task_manager.save_tasks()
-        QMessageBox.information(self, "Tasks Saved", "Task list saved successfully.")
     
     def on_task_double_clicked(self, row):
         task_data = self.task_manager.get_task(row)

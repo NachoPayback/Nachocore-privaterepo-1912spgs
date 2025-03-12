@@ -1,0 +1,122 @@
+/* Default Modular Style Preset */
+
+/* Global Container */
+QWidget#mainContainer {
+    background-color: #2b2b2b;
+    color: #dcdcdc;
+    font-family: "Roboto Mono", monospace;
+}
+
+/* Instructions */
+QLabel#instructionsLabel {
+    font-size: 16px;
+    color: #ffffff;
+    padding: 10px;
+}
+
+/* Header Labels */
+QLabel#headerLabel, QLabel.header {
+    font-size: 24px;
+    font-weight: bold;
+    color: #00FF00;
+}
+
+/* Security Header with Dynamic Styling */
+QLabel#securityHeaderLabel[securityMode="Ethical"] {
+    color: green;
+}
+QLabel#securityHeaderLabel[securityMode="Unethical"] {
+    color: orange;
+}
+QLabel#securityHeaderLabel[securityMode="Grift"] {
+    color: red;
+}
+QLabel#securityHeaderLabel[securityMode="Custom"] {
+    color: cyan;
+}
+
+/* QSS Editor Components */
+QLabel#qssEditorLabel {
+    font-size: 20px;
+    font-weight: bold;
+    color: #FFFFFF;
+}
+QPlainTextEdit#qssEditor {
+    background-color: #1e1e1e;
+    color: #dcdcdc;
+    border: 1px solid #555555;
+    padding: 5px;
+}
+
+/* Buttons - General */
+QPushButton {
+    background-color: #007ACC;
+    color: white;
+    border: 2px solid #005B9E;
+    padding: 5px;
+    font-size: 16px;
+}
+
+/* Specific Button Overrides */
+QPushButton#presetButton {
+    background-color: #555555;
+    color: white;
+    border: 1px solid #333333;
+}
+
+/* Input Fields */
+QLineEdit {
+    background-color: #3c3f41;
+    color: #dcdcdc;
+    border: 1px solid #555555;
+    padding: 4px;
+    font-size: 16px;
+}
+
+/* Task List Table */
+QTableWidget#taskListTable {
+    background-color: #1e1e1e;
+    color: #dcdcdc;
+    gridline-color: #444444;
+}
+
+/* Live Preview */
+QLabel#livePreviewLabel {
+    font-size: 18px;
+    color: #dcdcdc;
+}
+
+/* Element Inspector Preview Frame */
+QFrame#elementPreviewFrame {
+    background-color: #2b2b2b;
+    border: 1px solid #888888;
+}
+
+/* Checkboxes */
+QCheckBox {
+    spacing: 5px;
+    color: #dcdcdc;
+    font-size: 16px;
+}
+
+/* Security Mode Slider Display */
+QLabel#securityModeDisplay {
+    font-size: 20px;
+    color: #ffffff;
+}
+
+/* Boot Screen Editor Inputs */
+QLineEdit#bootTextInput, QLineEdit#bootImageInput {
+    background-color: #3c3f41;
+    color: #dcdcdc;
+    border: 1px solid #555555;
+    padding: 4px;
+}
+
+/* Sample styling for additional groups */
+QPushButton#submitButton {
+    background-color: #007ACC;
+    color: white;
+    border: 2px solid #005B9E;
+    padding: 5px;
+}

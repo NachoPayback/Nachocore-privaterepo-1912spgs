@@ -1,3 +1,4 @@
+# builder/ui/short_answer.py
 TASK_TYPE = "short_answer"
 
 import random
@@ -6,7 +7,6 @@ from PyQt6.QtCore import Qt
 
 class Task:
     def __init__(self):
-        # Default values; these will be overridden if saved data is loaded.
         self.question = "Type a synonym for 'quick'."
         self.acceptable_answers = ["fast", "rapid", "swift"]
         self.feedback_messages = [
@@ -14,23 +14,25 @@ class Task:
             "Incorrect. Please try once more!",
             "No, that's not it. Think harder!"
         ]
-        self.has_correct = True  # By default, a correct answer is required.
+        self.has_correct = True
 
     def get_widget(self, finish_callback):
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        # Use the instance's question (which may have been set via set_task_data).
         q_label = QLabel(self.question)
+        q_label.setObjectName("shortAnswerQuestion")
         q_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(q_label)
         self.answer_input = QLineEdit()
-        # In game mode, the QLineEdit is read-only (so that on-screen keyboard is used).
+        self.answer_input.setObjectName("shortAnswerInput")
         self.answer_input.setReadOnly(True)
         layout.addWidget(self.answer_input)
         self.feedback_label = QLabel("")
+        self.feedback_label.setObjectName("shortAnswerFeedback")
         self.feedback_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.feedback_label)
         submit_btn = QPushButton("Submit")
+        submit_btn.setObjectName("shortAnswerSubmitButton")
         def on_submit():
             entered = self.answer_input.text().strip()
             if self.has_correct:
@@ -52,11 +54,14 @@ class Task:
         widget = QWidget()
         layout = QFormLayout(widget)
         self.question_edit = QLineEdit(self.question)
+        self.question_edit.setObjectName("shortAnswerQuestionEdit")
         layout.addRow("Question:", self.question_edit)
         self.has_correct_checkbox = QCheckBox("Has Correct Answer")
+        self.has_correct_checkbox.setObjectName("shortAnswerHasCorrect")
         self.has_correct_checkbox.setChecked(self.has_correct)
         layout.addRow("Correct Answer Exists:", self.has_correct_checkbox)
         self.answers_edit = QLineEdit(", ".join(self.acceptable_answers))
+        self.answers_edit.setObjectName("shortAnswerAnswersEdit")
         layout.addRow("Acceptable Answers (comma-separated):", self.answers_edit)
         def toggle_answers():
             if self.has_correct_checkbox.isChecked():
@@ -82,14 +87,12 @@ class Task:
         }
 
     def set_task_data(self, data):
-        # Update the task instance with saved data.
         if "question" in data:
             self.question = data["question"]
         if "acceptable_answers" in data:
             self.acceptable_answers = data["acceptable_answers"]
         if "has_correct" in data:
             self.has_correct = data["has_correct"]
-        # If the builder widget exists (when editing), update its fields.
         if hasattr(self, "question_edit"):
             self.question_edit.setText(self.question)
         if hasattr(self, "has_correct_checkbox"):
